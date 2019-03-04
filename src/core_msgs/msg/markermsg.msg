@@ -1,0 +1,6 @@
+int32 image1_available
+int32 image2_available
+sensor_msgs/Image image1
+sensor_msgs/Image image2
+sensor_msgs/CompressedImage cimage1
+sensor_msgs/CompressedImage cimage2

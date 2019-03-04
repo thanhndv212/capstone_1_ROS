@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="rplidar_ros" type="rplidarNode" name="rplidarNode"/>
+    <node pkg="ball_detection" type="ball_detect_node" name="ball_detect_node"/>
+    <node pkg="image_transport_tutorial" type="my_publisher" name="my_publisher"/>
+    <node pkg="data_integrate" type="data_integation_node" name="data_integation_node"/>
+</launch>

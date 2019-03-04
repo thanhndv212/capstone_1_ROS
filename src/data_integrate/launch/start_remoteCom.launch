@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="data_integrate" type="data_show_node" name="data_show_node"/>
+    <node pkg="image_transport_tutorial" type="my_subscriber" name="my_subscriber"/>
+</launch>
