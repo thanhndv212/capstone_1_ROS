@@ -23,8 +23,9 @@ roscore
 you should install the xbox controller driver before catkin_make.
 
 please commend that
-
+```
 sudo apt-get install libudev-dev ncurses-dev
+```
 
 # biuld dependency issue
 ----------------------------------------------------------------------------------------------------
