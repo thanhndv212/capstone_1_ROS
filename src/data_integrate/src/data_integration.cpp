@@ -151,23 +151,23 @@ int main(int argc, char **argv)
 		// // 각노드에서 받아오는 센서 테이터가 잘 받아 왔는지 확인하는 코드 (ctrl + /)을 눌러 주석을 추가/제거할수 있다.///
 		/////////////////////////////////////////////////////////////////////////////////////////////////
 
-	 //  for(int i = 0; i < lidar_size; i++
-   // {
-	 //    std::cout << "degree : "<< lidar_degree[i];
-	 //    std::cout << "   distance : "<< lidar_distance[i]<<std::endl;
-	 //  }
-		// for(int i = 0; i < ball_number; i++)
-		// {
-		// 	std::cout << "ball_X : "<< ball_X[i];
-		// 	std::cout << "ball_Y : "<< ball_Y[i]<<std::endl;
-   //
-		// }
+	  for(int i = 0; i < lidar_size; i++)
+   {
+	    std::cout << "degree : "<< lidar_degree[i];
+	    std::cout << "   distance : "<< lidar_distance[i]<<std::endl;
+	  }
+		for(int i = 0; i < ball_number; i++)
+		{
+			std::cout << "ball_X : "<< ball_X[i];
+			std::cout << "ball_Y : "<< ball_Y[i]<<std::endl;
+
+		}
 
 
 
 		////////////////////////////////////////////////////////////////
 		// // 자율 주행을 예제 코드 (ctrl + /)을 눌러 주석을 추가/제거할수 있다.///
-		////////////////////////////////////////////////////////////////
+		// ////////////////////////////////////////////////////////////////
 		// dataInit();
 		// for(int i = 0; i < lidar_size-1; i++)
 		// 	    {
