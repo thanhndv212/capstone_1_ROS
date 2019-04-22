@@ -24,15 +24,49 @@
 #include "std_msgs/Int8.h"
 #include "std_msgs/String.h"
 
-
 #include "opencv2/opencv.hpp"
-
 
 #define RAD2DEG(x) ((x)*180./M_PI)
 
 #define PORT 4000
 #define IPADDR "127.0.0.1" // myRIO ipadress
 
+#define DEBUG 1
+#define PERIOD 10
+
+#define ANGULAR_RANGE 30
+
+/* For timer features */
+uint32_t timer_ticks = 0;
+uint32_t current_ticks = 0;
+
+/* State variable declaration */
+enum status {
+  /* Moving around */
+  SEARCH, APPROACH, RED_AVOIDANCE,
+  /* Turn on roller only for this state */
+  COLLECT,
+  /* Return to goal pos */
+  SEARCH_GREEN, APPROACH_GREEN, RELEASE
+};
+
+enum color {
+  NONE, BLUE, RED, GREEN
+};
+
+enum actions {
+  TURN_LEFT, TURN_RIGHT, GO_FRONT, GO_BACK
+};
+
+/* State of our machine = SEARCH phase by default */
+enum status machine_status = SEARCH;
+enum color closest_ball = NONE;
+
+/* Number of balls holding */
+int ball_cnt = 0; 
+
+#ifdef NOT_REACHED
+/* Synchronization primitives and Lidar */
 boost::mutex map_mutex;
 
 int lidar_size;
@@ -40,13 +74,18 @@ float lidar_degree[400];
 float lidar_distance[400];
 float lidar_obs;
 
+int near_ball;
+int action;
+#endif
+
+/* Ball detection */
 int ball_number;
 float ball_X[20];
 float ball_Y[20];
 float ball_distance[20];
-int near_ball;
 
-int action;
+/* Track the closest ball. */
+int target_ball;  // index of target ball
 
 int c_socket, s_socket;
 struct sockaddr_in c_addr;
@@ -54,7 +93,165 @@ int len;
 int n;
 float data[24];
 
-#define RAD2DEG(x) ((x)*180./M_PI)
+/* Function prototypes */
+void dataInit();
+void find_ball();
+void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan);
+void camera_Callback(const core_msgs::ball_position::ConstPtr& position);
+int target(size_t ball_cnt);
+
+#define TIMEOUT 200
+#define MAXSIZE 20
+#define THRESH 30.0f
+
+const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "SEARCH_GREEN", "APPROACH_GREEN", "RELEASE" };
+
+/* Main routine */
+int main(int argc, char **argv)
+{
+    ros::init(argc, argv, "data_integation");
+    ros::NodeHandle n;
+
+    #ifdef UNUSED
+      ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, lidar_Callback);
+    #endif
+    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
+
+		dataInit();
+
+    #ifdef MYRIO
+    c_socket = socket(PF_INET, SOCK_STREAM, 0);
+    c_addr.sin_addr.s_addr = inet_addr(IPADDR);
+    c_addr.sin_family = AF_INET;
+    c_addr.sin_port = htons(PORT);
+
+    if(connect(c_socket, (struct sockaddr*) &c_addr, sizeof(c_addr)) == -1){
+      printf("Failed to connect\n");
+      close(c_socket);
+      return -1;
+    }
+    #endif
+
+    while(ros::ok){
+      switch(machine_status) {
+        case SEARCH:
+          // TURN_RIGHT()
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case APPROACH:
+          // GO_FRONT()
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case RED_AVOIDANCE:
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case COLLECT:
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case SEARCH_GREEN:
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case APPROACH_GREEN:
+          break;
+        case RELEASE: // This mode needs some senitel code for backup
+          break;
+        default:
+          break;
+      }
+
+    #ifdef MYRIO
+	    write(c_socket, data, sizeof(data));
+    #endif
+
+	    ros::Duration(0.025).sleep();
+	    ros::spinOnce();
+      timer_ticks++;
+      if(timer_ticks>TIMEOUT*PERIOD)
+        return 0;
+    }
+
+    return 0;
+}
+
+
+/* 
+ * camera_Callback : Updates position/ball_count of all colors
+ * TODO : define separate callbacks for each colors(BLUE, RED, GREEN)
+ * (ad-hoc) For now, we safely assume that there are blue balls only.
+ */
+void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
+{
+
+    int count = position->size;
+    ball_number = count;
+    for(int i = 0; i < count; i++)
+    {
+        ball_X[i] = position->img_x[i];
+        ball_Y[i] = position->img_y[i];
+        #ifndef DEBUG
+          std::cout << "degree : "<< ball_degree[i];
+          std::cout << "   distance : "<< ball_distance[i]<<std::endl;
+        #endif
+		ball_distance[i] = ball_X[i]*ball_X[i]+ball_Y[i]*ball_X[i];
+    }
+
+    switch(machine_status) {
+      case SEARCH:
+        if(target(count) != -1)
+          machine_status = APPROACH;
+        break;
+      case APPROACH:
+        if(target(count) == -1)
+          machine_status = SEARCH;
+        else if(ball_Y[target(count)] < THRESH)
+          machine_status = COLLECT;
+        break;
+      case RED_AVOIDANCE:
+      case COLLECT:
+      {
+        int idx = target(count);
+        if(idx == -1) {
+          printf("Consumed ball. Ball count = %d\n", ++ball_cnt);
+          machine_status = SEARCH;
+        } else if(ball_Y[idx] >= THRESH) {
+          printf("Consumed ball. Ball count = %d\n", ++ball_cnt);
+          machine_status = SEARCH;
+        }
+        break;
+      }
+      case SEARCH_GREEN:
+      case APPROACH_GREEN:
+      case RELEASE:
+      default:
+        break;
+    }
+}
+
+int target(size_t ball_cnt) {
+  // No blue ball in range : should keep spinning
+  if(!ball_cnt)
+    return -1;
+
+  // There is a blue ball : should align ball to center
+  int k = 0;
+  float x_range = fabs(ball_X[0]);
+
+  for(int i = 0 ; i < ball_cnt; i++) {
+    if(x_range > fabs(ball_X[i])){
+      x_range = fabs(ball_X[i]);
+      k = i;
+    }
+  }
+  if(RAD2DEG(atan(x_range/ball_Y[k])) < ANGULAR_RANGE) 
+    return k;
+  else
+    return -1;
+}
+
+void find_ball()
+{
+	data[20]=1;
+}
 
 void dataInit()
 {
@@ -85,74 +282,27 @@ void dataInit()
 }
 
 
+#ifdef NOT_REACHED
+
+// LIDAR is UNUSED for this project
 void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan)
-{
-		map_mutex.lock();
-
-    int count = scan->scan_time / scan->time_increment;
-    lidar_size=count;
-    for(int i = 0; i < count; i++)
-    {
-        lidar_degree[i] = RAD2DEG(scan->angle_min + scan->angle_increment * i);
-        lidar_distance[i]=scan->ranges[i];
-    }
-		map_mutex.unlock();
-
-}
-void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
-{
-
-    int count = position->size;
-    ball_number=count;
-    for(int i = 0; i < count; i++)
-    {
-        ball_X[i] = position->img_x[i];
-        ball_Y[i] = position->img_y[i];
-        // std::cout << "degree : "<< ball_degree[i];
-        // std::cout << "   distance : "<< ball_distance[i]<<std::endl;
-		ball_distance[i] = ball_X[i]*ball_X[i]+ball_Y[i]*ball_X[i];
-    }
-
-}
-void find_ball()
-{
-	data[20]=1;
-}
+  { 
+  		map_mutex.lock();
+  
+     int count = scan->scan_time / scan->time_increment;
+     lidar_size=count;
+     for(int i = 0; i < count; i++)
+     {
+         lidar_degree[i] = RAD2DEG(scan->angle_min + scan->angle_increment * i);
+         lidar_distance[i]=scan->ranges[i];
+     }
+  		map_mutex.unlock();
+  }  
 
 
-int main(int argc, char **argv)
-{
-    ros::init(argc, argv, "data_integation");
-    ros::NodeHandle n;
-
-    ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, lidar_Callback);
-    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
-
-		dataInit();
-
-    c_socket = socket(PF_INET, SOCK_STREAM, 0);
-    c_addr.sin_addr.s_addr = inet_addr(IPADDR);
-    c_addr.sin_family = AF_INET;
-    c_addr.sin_port = htons(PORT);
-
-		///////////////////////////////////////////////////////////////////////
-		//	렙뷰와 통신이 되었는지 확인하는 코드 아래 코드를 활성화 후 노드를 실행 시켰을때///
-		//	노드가 작동 -> 통신이 연결됨, Failed to connect 이라고 뜸 -> 통신이 안됨///
-		////////////////////////////////////////////////////////////////////////
-    // if(connect(c_socket, (struct sockaddr*) &c_addr, sizeof(c_addr)) == -1){
-    //     printf("Failed to connect\n");
-    //     close(c_socket);
-    //     return -1;
-    // }
-
-
-    while(ros::ok){
-		/////////////////////////////////////////////////////////////////////////////////////////////////
-		// // 각노드에서 받아오는 센서 테이터가 잘 받아 왔는지 확인하는 코드 (ctrl + /)을 눌러 주석을 추가/제거할수 있다.///
-		/////////////////////////////////////////////////////////////////////////////////////////////////
-
+  /* Checks for data subscription */
 	  for(int i = 0; i < lidar_size; i++)
-   {
+    {
 	    std::cout << "degree : "<< lidar_degree[i];
 	    std::cout << "   distance : "<< lidar_distance[i]<<std::endl;
 	  }
@@ -160,11 +310,9 @@ int main(int argc, char **argv)
 		{
 			std::cout << "ball_X : "<< ball_X[i];
 			std::cout << "ball_Y : "<< ball_Y[i]<<std::endl;
-
 		}
 
-
-
+  /* Sample code */
 		////////////////////////////////////////////////////////////////
 		// // 자율 주행을 예제 코드 (ctrl + /)을 눌러 주석을 추가/제거할수 있다.///
 		// ////////////////////////////////////////////////////////////////
@@ -203,10 +351,6 @@ int main(int argc, char **argv)
 	      // }
 	      // printf("\n");
 			// printf("%d\n",action);
-	    write(c_socket, data, sizeof(data));
-	    ros::Duration(0.025).sleep();
-	    ros::spinOnce();
-    }
 
-    return 0;
-}
+
+#endif
