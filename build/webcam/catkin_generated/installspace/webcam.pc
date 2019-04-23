@@ -1,0 +1,8 @@
+prefix=/home/thanhndv212/capstone_1_ROS/install
+
+Name: webcam
+Description: Description of webcam
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/thanhndv212/capstone_1_ROS/install/lib 
+Requires: 

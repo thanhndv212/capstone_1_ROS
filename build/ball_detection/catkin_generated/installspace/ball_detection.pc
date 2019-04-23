@@ -1,0 +1,8 @@
+prefix=/home/thanhndv212/capstone_1_ROS/install
+
+Name: ball_detection
+Description: Description of ball_detection
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/thanhndv212/capstone_1_ROS/install/lib 
+Requires: 

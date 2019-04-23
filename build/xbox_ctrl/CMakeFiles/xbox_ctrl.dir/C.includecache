@@ -1,0 +1,36 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/thanhndv212/capstone_1_ROS/src/xbox_ctrl/include/xbox_ctrl/gamepad.h
+
+/home/thanhndv212/capstone_1_ROS/src/xbox_ctrl/src/gamepad.c
+math.h
+-
+string.h
+-
+errno.h
+-
+malloc.h
+-
+xbox_ctrl/gamepad.h
+/home/thanhndv212/capstone_1_ROS/src/xbox_ctrl/src/xbox_ctrl/gamepad.h
+windows.h
+/home/thanhndv212/capstone_1_ROS/src/xbox_ctrl/src/windows.h
+xinput.h
+/home/thanhndv212/capstone_1_ROS/src/xbox_ctrl/src/xinput.h
+linux/joystick.h
+-
+stdio.h
+-
+fcntl.h
+-
+unistd.h
+-
+libudev.h
+-
+
