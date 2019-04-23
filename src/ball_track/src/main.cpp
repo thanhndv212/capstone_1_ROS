@@ -6,6 +6,13 @@
 #include <stdlib.h>
 #include <math.h>
 
+
+#include "core_msgs/ball_position.h"
+#include "core_msgs/ball_position_r.h"
+#include <cv_bridge/cv_bridge.h>
+
+
+
 using namespace std;
 using namespace cv;
 
@@ -66,9 +73,24 @@ String text ;
 
 int iMin_tracking_ball_size = 20; // This is the minimum tracking ball size, in pixels.
 
+/////ROS publisher
+ros::Publisher pub;
+ros::Publisher pub_r;
+
+
 // Here, we start our main function.
-int main()
+int main(int argc, char **argv)
 {
+    ros::init(argc, argv, "ball_detect_node"); //init ros nodd
+    ros::NodeHandle nh; //create node handler
+    ros::Rate loop_rate(30);
+    pub = nh.advertise<core_msgs::ball_position>("/position", 100); //setting publisher
+    pub_r = nh.advertise<core_msgs::ball_position_r>("/position_r",100);
+    /////////////////////////////////////////////////////////////////////////
+
+    core_msgs::ball_position msg;  //create a message for ball positions
+    core_msgs::ball_position_r msg_r;
+    //////////////////////////////////////////////////////////////////
     Mat frame, bgr_frame, hsv_frame, hsv_frame_red, hsv_frame_red1, hsv_frame_red2, hsv_frame_blue, hsv_frame_red_blur, hsv_frame_blue_blur, hsv_frame_red_canny, hsv_frame_blue_canny, result;
     Mat calibrated_frame;
     Mat intrinsic = Mat(3,3, CV_32FC1);
@@ -119,7 +141,7 @@ int main()
     createTrackbar("Min Threshold:","Canny Edge for Red Ball", &lowThreshold_r, 100, on_canny_edge_trackbar_red);
     createTrackbar("Min Threshold:","Canny Edge for Blue Ball", &lowThreshold_b, 100, on_canny_edge_trackbar_blue);
 
-while((char)waitKey(1)!='q'){
+    while((char)waitKey(1)!= 'q'){
     cap>>frame;
     if(frame.empty())
         break;
@@ -163,7 +185,15 @@ while((char)waitKey(1)!='q'){
     vector<Point2f>center_b( contours_b.size() );
     vector<float>radius_r( contours_r.size() );
     vector<float>radius_b( contours_b.size() );
-
+////////////////////////////////////////////////
+    msg.size =contours_b.size();//adding numbers of blue balls to /ball_position messagem
+    msg.img_x.resize(contours_b.size());
+    msg.img_y.resize(contours_b.size());
+    /////////////////////////////////////
+    msg_r.size_r =contours_r.size();//adding numbers of blue balls to /ball_position messagem
+    msg_r.img_x_r.resize(contours_r.size());
+    msg_r.img_y_r.resize(contours_r.size());
+    ////////////////////////////////////////////////////
     for( size_t i = 0; i < contours_r.size(); i++ ){approxPolyDP( contours_r[i], contours_r_poly[i], 3, true );
         minEnclosingCircle( contours_r_poly[i], center_r[i], radius_r[i] );
     }
@@ -186,6 +216,8 @@ while((char)waitKey(1)!='q'){
             text = "Red ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_r[i],2,1,Scalar(0,255,0),2);
             circle( result, center_r[i], (int)radius_r[i], color, 2, 8, 0 );
+            msg_r.img_x_r[i] = isx;
+            msg_r.img_y_r[i] = isy;
         }
     }
 
@@ -202,6 +234,8 @@ while((char)waitKey(1)!='q'){
             text = "Blue ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_b[i],2,1,Scalar(0,255,0),2);
             circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
+            msg.img_x[i] = isx;
+            msg.img_y[i] = isy;
         }
     }
 
@@ -212,7 +246,12 @@ while((char)waitKey(1)!='q'){
     imshow("Canny Edge for Red Ball", hsv_frame_red_canny);
     imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
     imshow("Result", result);
+
+    pub.publish(msg);
+    pub_r.publish(msg_r);
+    loop_rate.sleep();
     }
+
     return 0;
 }
 

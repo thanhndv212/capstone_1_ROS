@@ -1,0 +1,8 @@
+prefix=/home/thanhndv212/capstone_1_ROS/devel
+
+Name: comm_tcp
+Description: Description of comm_tcp
+Version: 0.1.0
+Cflags: 
+Libs: -L/home/thanhndv212/capstone_1_ROS/devel/lib -lcomm_tcp
+Requires: roscpp rospy std_msgs

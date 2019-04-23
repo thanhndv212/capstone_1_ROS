@@ -57,7 +57,7 @@ void ball_detect(){
            ball_list.scale.x=radius; //set the radius of marker   1.0 means 1.0m, 0.001 means 1mm
            ball_list.scale.y=radius;
            ball_list.scale.z=radius;
-
+//////////////////////////////////////////////////////////////////////////////
     for(int k=0;k<circles.size();k++){
            params = circles[k];  //the information of k-th circle
            cx=cvRound(params[0]);  //x position of k-th circle

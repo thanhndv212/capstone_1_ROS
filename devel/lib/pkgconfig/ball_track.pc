@@ -1,0 +1,8 @@
+prefix=/home/thanhndv212/capstone_1_ROS/devel
+
+Name: ball_track
+Description: Description of ball_track
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/thanhndv212/capstone_1_ROS/devel/lib 
+Requires: 

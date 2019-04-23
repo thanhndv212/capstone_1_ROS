@@ -1,0 +1,2 @@
+ball_detection:ball_track:comm_tcp:core_msgs:data_integrate:image_transport_tutorial:rplidar_ros:webcam:xbox_ctrl
+-DCATKIN_DEVEL_PREFIX=/home/thanhndv212/capstone_1_ROS/devel -DCMAKE_INSTALL_PREFIX=/home/thanhndv212/capstone_1_ROS/install -G Unix Makefiles
