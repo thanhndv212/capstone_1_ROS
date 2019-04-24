@@ -29,12 +29,22 @@
 #define RAD2DEG(x) ((x)*180./M_PI)
 
 #define PORT 4000
-#define IPADDR "127.0.0.1" // myRIO ipadress
+#define IPADDR "172.16.0.1" // myRIO ipadress
+#define MYRIO
 
-#define DEBUG 1
+#define DEBUG 0 
 #define PERIOD 10
 
 #define ANGULAR_RANGE 30
+
+#define TURN_RIGHT { data[1] = 1; }
+#define TURN_LEFT { data[1] = -1; }
+#define GO_FRONT { data[0] = 1; }
+#define GO_BACK { data[0] = -1; }
+#define ROLLER_ON { data[2] = 1; }
+#define ROLLER_REVERSE { data[2] = -1; }
+#define TURN_BACK { data[3] = 1; }
+
 
 /* For timer features */
 uint32_t timer_ticks = 0;
@@ -55,7 +65,7 @@ enum color {
 };
 
 enum actions {
-  TURN_LEFT, TURN_RIGHT, GO_FRONT, GO_BACK
+  TURN_LEFT_, TURN_RIGHT_, GO_FRONT_, GO_BACK_
 };
 
 /* State of our machine = SEARCH phase by default */
@@ -100,7 +110,7 @@ void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan);
 void camera_Callback(const core_msgs::ball_position::ConstPtr& position);
 int target(size_t ball_cnt);
 
-#define TIMEOUT 200
+#define TIMEOUT 20
 #define MAXSIZE 20
 #define THRESH 30.0f
 
@@ -131,21 +141,39 @@ int main(int argc, char **argv)
       return -1;
     }
     #endif
-
     while(ros::ok){
+      /* This part is for TCP connection teardown */
+      if(timer_ticks>TIMEOUT*PERIOD){
+        /* server side close() */
+        if(timer_ticks < (TIMEOUT+1)*PERIOD+1){
+          data[21] = 1;
+          write(c_socket, data, sizeof(data)) ;
+       } else { 
+          /* client side close() */
+          close(c_socket);
+          ros::shutdown();
+          return 0;
+        }
+      } else {
+
+      dataInit();
+
       switch(machine_status) {
         case SEARCH:
-          // TURN_RIGHT()
+          // during search phase, simply turn right
+          TURN_RIGHT
           if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
           break;
         case APPROACH:
-          // GO_FRONT()
+          // approaching phase naively goes front, until ball is in range.
+          GO_FRONT
           if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
           break;
         case RED_AVOIDANCE:
           if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
           break;
         case COLLECT:
+          GO_FRONT ROLLER_ON
           if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
           break;
         case SEARCH_GREEN:
@@ -160,16 +188,18 @@ int main(int argc, char **argv)
       }
 
     #ifdef MYRIO
-	    write(c_socket, data, sizeof(data));
+    size_t written = write(c_socket, data, sizeof(data));
+    if(DEBUG)
+      printf("%d bytes written\n", (int) written);
     #endif
 
+      }
 	    ros::Duration(0.025).sleep();
 	    ros::spinOnce();
       timer_ticks++;
-      if(timer_ticks>TIMEOUT*PERIOD)
-        return 0;
     }
-
+    close(c_socket);
+    ros::shutdown();
     return 0;
 }
 
