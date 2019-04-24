@@ -1,1 +1,0 @@
-/usr/bin/cc  -fPIC   -shared -Wl,-soname,libxbox_ctrl.so -o /home/thanhndv212/capstone_1_ROS/devel/lib/libxbox_ctrl.so CMakeFiles/xbox_ctrl.dir/src/gamepad.c.o -ludev -lm -lc 

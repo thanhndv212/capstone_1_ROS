@@ -1,8 +1,0 @@
-prefix=/home/thanhndv212/capstone_1_ROS/devel
-
-Name: image_transport_tutorial
-Description: Description of image_transport_tutorial
-Version: 0.0.0
-Cflags: -I/home/thanhndv212/capstone_1_ROS/src/image_transport_tutorial/include
-Libs: -L/home/thanhndv212/capstone_1_ROS/devel/lib 
-Requires: roscpp sensor_msgs std_msgs core_msgs image_transport

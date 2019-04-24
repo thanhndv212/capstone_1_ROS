@@ -1,8 +1,0 @@
-prefix=/home/thanhndv212/capstone_1_ROS/devel
-
-Name: rplidar_ros
-Description: Description of rplidar_ros
-Version: 1.5.7
-Cflags: 
-Libs: -L/home/thanhndv212/capstone_1_ROS/devel/lib 
-Requires: 

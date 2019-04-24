@@ -1,8 +1,0 @@
-prefix=/home/thanhndv212/capstone_1_ROS/install
-
-Name: data_integrate
-Description: Description of data_integrate
-Version: 0.0.0
-Cflags: 
-Libs: -L/home/thanhndv212/capstone_1_ROS/install/lib 
-Requires: 
