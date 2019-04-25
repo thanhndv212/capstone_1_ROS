@@ -6,9 +6,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-
-#include "core_msgs/ball_position.h"
 #include "core_msgs/ball_position_r.h"
+#include "core_msgs/ball_position_b.h"
 #include <cv_bridge/cv_bridge.h>
 
 
@@ -17,25 +16,13 @@ using namespace std;
 using namespace cv;
 
 // Declaration of trackbar functions to set HSV colorspace's parameters: In this section, we declare the functions that are displayed at the end on the multiple trackbars. We declare two sets of trackbar functions; one for the red ball, and one for the blue ball, Void functions are used so that they do not return any value. int is used when integer values are desired.
-void on_low_h_thresh_trackbar_red(int, void *);
-void on_high_h_thresh_trackbar_red(int, void *);
-void on_low_h2_thresh_trackbar_red(int, void *);
-void on_high_h2_thresh_trackbar_red(int, void *);
-void on_low_s_thresh_trackbar_red(int, void *);
-void on_high_s_thresh_trackbar_red(int, void *);
-void on_low_v_thresh_trackbar_red(int, void *);
-void on_high_v_thresh_trackbar_red(int, void *);
+
 int low_h2_r=160, high_h2_r=180;
-int low_h_r=0, low_s_r=100, low_v_r=136;
+int low_h_r=0, low_s_r=107, low_v_r=129;
 int high_h_r=10, high_s_r=255, high_v_r=255;
-void on_low_h_thresh_trackbar_blue(int, void *);
-void on_high_h_thresh_trackbar_blue(int, void *);
-void on_low_s_thresh_trackbar_blue(int, void *);
-void on_high_s_thresh_trackbar_blue(int, void *);
-void on_low_v_thresh_trackbar_blue(int, void *);
-void on_high_v_thresh_trackbar_blue(int, void *);
-int low_h_b=110, low_s_b=100, low_v_b=100;
-int high_h_b=130, high_s_b=255, high_v_b=255;
+
+int low_h_b=48, low_s_b=120, low_v_b=0;
+int high_h_b=120, high_s_b=255, high_v_b=255;
 
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
 string intToString(int n);
@@ -74,8 +61,9 @@ String text ;
 int iMin_tracking_ball_size = 20; // This is the minimum tracking ball size, in pixels.
 
 /////ROS publisher
-ros::Publisher pub;
 ros::Publisher pub_r;
+ros::Publisher pub_b;
+
 
 
 // Here, we start our main function.
@@ -83,13 +71,13 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "ball_detect_node"); //init ros nodd
     ros::NodeHandle nh; //create node handler
-    ros::Rate loop_rate(30);
-    pub = nh.advertise<core_msgs::ball_position>("/position", 100); //setting publisher
-    pub_r = nh.advertise<core_msgs::ball_position_r>("/position_r",100);
+    pub_r = nh.advertise<core_msgs::ball_position_r>("/position_r", 100); //setting publisher
+    pub_b = nh.advertise<core_msgs::ball_position_b>("/position_b", 100); //setting publisher
     /////////////////////////////////////////////////////////////////////////
 
-    core_msgs::ball_position msg;  //create a message for ball positions
-    core_msgs::ball_position_r msg_r;
+    core_msgs::ball_position_r msg_r;  //create a message for ball positions
+    core_msgs::ball_position_b msg_b;
+
     //////////////////////////////////////////////////////////////////
     Mat frame, bgr_frame, hsv_frame, hsv_frame_red, hsv_frame_red1, hsv_frame_red2, hsv_frame_blue, hsv_frame_red_blur, hsv_frame_blue_blur, hsv_frame_red_canny, hsv_frame_blue_canny, result;
     Mat calibrated_frame;
@@ -119,29 +107,8 @@ int main(int argc, char **argv)
     moveWindow("Canny Edge for Blue Ball", 470,730);
     moveWindow("Result", 470, 0);
 
-    // Trackbars to set thresholds for HSV values : Red ball: In this part, we set the thresholds, in HSV color space values, for the red ball's trackbar. Since the red color has empty space in between, we need two sets of H values fro red ball.
-    createTrackbar("Low H","Object Detection_HSV_Red", &low_h_r, 180, on_low_h_thresh_trackbar_red);
-    createTrackbar("High H","Object Detection_HSV_Red", &high_h_r, 180, on_high_h_thresh_trackbar_red);
-    createTrackbar("Low H2","Object Detection_HSV_Red", &low_h2_r, 180, on_low_h2_thresh_trackbar_red);
-    createTrackbar("High H2","Object Detection_HSV_Red", &high_h2_r, 180, on_high_h2_thresh_trackbar_red);
-    createTrackbar("Low S","Object Detection_HSV_Red", &low_s_r, 255, on_low_s_thresh_trackbar_red);
-    createTrackbar("High S","Object Detection_HSV_Red", &high_s_r, 255, on_high_s_thresh_trackbar_red);
-    createTrackbar("Low V","Object Detection_HSV_Red", &low_v_r, 255, on_low_v_thresh_trackbar_red);
-    createTrackbar("High V","Object Detection_HSV_Red", &high_v_r, 255, on_high_v_thresh_trackbar_red);
 
-    // Trackbars to set thresholds for HSV values : Blue ball: In this part, we set the thresholds, in HSV color space, for the blue ball's trackbar.
-    createTrackbar("Low H","Object Detection_HSV_Blue", &low_h_b, 180, on_low_h_thresh_trackbar_blue);
-    createTrackbar("High H","Object Detection_HSV_Blue", &high_h_b, 180, on_high_h_thresh_trackbar_blue);
-    createTrackbar("Low S","Object Detection_HSV_Blue", &low_s_b, 255, on_low_s_thresh_trackbar_blue);
-    createTrackbar("High S","Object Detection_HSV_Blue", &high_s_b, 255, on_high_s_thresh_trackbar_blue);
-    createTrackbar("Low V","Object Detection_HSV_Blue", &low_v_b, 255, on_low_v_thresh_trackbar_blue);
-    createTrackbar("High V","Object Detection_HSV_Blue", &high_v_b, 255, on_high_v_thresh_trackbar_blue);
-
-    // Trackbar to set parameter for Canny Edge: In this part, we set the threshold for the Canny edge trackbar.
-    createTrackbar("Min Threshold:","Canny Edge for Red Ball", &lowThreshold_r, 100, on_canny_edge_trackbar_red);
-    createTrackbar("Min Threshold:","Canny Edge for Blue Ball", &lowThreshold_b, 100, on_canny_edge_trackbar_blue);
-
-    while((char)waitKey(1)!= 'q'){
+    while((char)waitKey(1)!='q'){
     cap>>frame;
     if(frame.empty())
         break;
@@ -186,14 +153,10 @@ int main(int argc, char **argv)
     vector<float>radius_r( contours_r.size() );
     vector<float>radius_b( contours_b.size() );
 ////////////////////////////////////////////////
-    msg.size =contours_b.size();//adding numbers of blue balls to /ball_position messagem
-    msg.img_x.resize(contours_b.size());
-    msg.img_y.resize(contours_b.size());
+    //msg_b.size =contours_b.size();//adding numbers of blue balls to /ball_position messagem
+    //msg_b.img_x.resize(contours_b.size());
+    //msg_b.img_y.resize(contours_b.size());
     /////////////////////////////////////
-    msg_r.size_r =contours_r.size();//adding numbers of blue balls to /ball_position messagem
-    msg_r.img_x_r.resize(contours_r.size());
-    msg_r.img_y_r.resize(contours_r.size());
-    ////////////////////////////////////////////////////
     for( size_t i = 0; i < contours_r.size(); i++ ){approxPolyDP( contours_r[i], contours_r_poly[i], 3, true );
         minEnclosingCircle( contours_r_poly[i], center_r[i], radius_r[i] );
     }
@@ -213,11 +176,14 @@ int main(int argc, char **argv)
             string sx = floatToString(isx);
             string sy = floatToString(isy);
             string sz = floatToString(isz);
+   	    msg_r.size =ball_position_r[3];
+            msg_r.img_x = isx;
+            msg_r.img_y = isy;
+            msg_r.img_z = isz;
             text = "Red ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_r[i],2,1,Scalar(0,255,0),2);
             circle( result, center_r[i], (int)radius_r[i], color, 2, 8, 0 );
-            msg_r.img_x_r[i] = isx;
-            msg_r.img_y_r[i] = isy;
+    pub_r.publish(msg_r);
         }
     }
 
@@ -231,11 +197,14 @@ int main(int argc, char **argv)
             string sx = floatToString(isx);
             string sy = floatToString(isy);
             string sz = floatToString(isz);
+   	    msg_b.size =ball_position_b[3];
+            msg_b.img_x = isx;
+            msg_b.img_y = isy;
+            msg_b.img_z = isz;
             text = "Blue ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_b[i],2,1,Scalar(0,255,0),2);
             circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
-            msg.img_x[i] = isx;
-            msg.img_y[i] = isy;
+    pub_b.publish(msg_b);
         }
     }
 
@@ -247,11 +216,9 @@ int main(int argc, char **argv)
     imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
     imshow("Result", result);
 
-    pub.publish(msg);
-    pub_r.publish(msg_r);
-    loop_rate.sleep();
-    }
 
+    }
+    ros::spin();
     return 0;
 }
 
@@ -294,56 +261,4 @@ vector<float> pixel2point(Point center, int radius){vector<float> position;
     position.push_back(Yc);
     position.push_back(Zc);
     return position;
-}
-
-// Trackbar for image threshodling in HSV colorspace : Red : The functions had been declared and created, and now they are positioned in the relevant result frames. In this case, in the red ball's frames.
-void on_low_h_thresh_trackbar_red(int, void *){low_h_r = min(high_h_r-1, low_h_r);
-    setTrackbarPos("Low H","Object Detection_HSV_Red", low_h_r);
-}
-void on_high_h_thresh_trackbar_red(int, void *){high_h_r = max(high_h_r, low_h_r+1);
-    setTrackbarPos("High H", "Object Detection_HSV_Red", high_h_r);
-}
-void on_low_h2_thresh_trackbar_red(int, void *){low_h2_r = min(high_h2_r-1, low_h2_r);
-    setTrackbarPos("Low H2","Object Detection_HSV_Red", low_h2_r);
-}
-void on_high_h2_thresh_trackbar_red(int, void *){high_h_r = max(high_h_r, low_h_r+1);
-    setTrackbarPos("High H", "Object Detection_HSV_Red", high_h_r);
-}
-void on_low_s_thresh_trackbar_red(int, void *){low_s_r = min(high_s_r-1, low_s_r);
-    setTrackbarPos("Low S","Object Detection_HSV_Red", low_s_r);
-}
-void on_high_s_thresh_trackbar_red(int, void *){high_s_r = max(high_s_r, low_s_r+1);
-    setTrackbarPos("High S", "Object Detection_HSV_Red", high_s_r);
-}
-void on_low_v_thresh_trackbar_red(int, void *){low_v_r= min(high_v_r-1, low_v_r);
-    setTrackbarPos("Low V","Object Detection_HSV_Red", low_v_r);
-}
-void on_high_v_thresh_trackbar_red(int, void *){high_v_r = max(high_v_r, low_v_r+1);
-    setTrackbarPos("High V", "Object Detection_HSV_Red", high_v_r);
-}
-
-// Trackbar for image threshodling in HSV colorspace : Blue : The functions had been declared and created, and now they are positioned in the relevant result frames. In this case, in the blue ball's frames.
-void on_low_h_thresh_trackbar_blue(int, void *){low_h_b = min(high_h_b-1, low_h_b);
-    setTrackbarPos("Low H","Object Detection_HSV_Blue", low_h_b);
-}
-void on_high_h_thresh_trackbar_blue(int, void *){high_h_b = max(high_h_b, low_h_b+1);
-    setTrackbarPos("High H", "Object Detection_HSV_Blue", high_h_b);
-}
-void on_low_s_thresh_trackbar_blue(int, void *){low_s_b = min(high_s_b-1, low_s_b);
-    setTrackbarPos("Low S","Object Detection_HSV_Blue", low_s_b);
-}
-void on_high_s_thresh_trackbar_blue(int, void *){high_s_b = max(high_s_b, low_s_b+1);
-    setTrackbarPos("High S", "Object Detection_HSV_Blue", high_s_b);
-}
-void on_low_v_thresh_trackbar_blue(int, void *){low_v_b= min(high_v_b-1, low_v_b);
-    setTrackbarPos("Low V","Object Detection_HSV_Blue", low_v_b);
-}
-void on_high_v_thresh_trackbar_blue(int, void *){high_v_b = max(high_v_b, low_v_b+1);
-    setTrackbarPos("High V", "Object Detection_HSV_Blue", high_v_b);
-}
-
-// Trackbar for Canny edge algorithm : The trackbars for the Canny edge window are positioned here, for both the red and blue balls.
-void on_canny_edge_trackbar_red(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Red Ball", lowThreshold_r);
-}
-void on_canny_edge_trackbar_blue(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Blue Ball", lowThreshold_b);
 }
