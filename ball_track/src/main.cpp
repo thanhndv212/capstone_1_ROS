@@ -5,7 +5,7 @@
 #include <string>
 #include <stdlib.h>
 #include <math.h>
-
+#include <signal.h>
 #include "core_msgs/ball_position.h"
 #include "core_msgs/ball_position_b.h"
 #include <cv_bridge/cv_bridge.h>
@@ -64,10 +64,15 @@ ros::Publisher pub_r;
 ros::Publisher pub_b;
 
 
+void sigint_handler(int sig){
+  exit(-1);
+}
 
 // Here, we start our main function.
 int main(int argc, char **argv)
 {
+    signal(SIGINT, sigint_handler);
+
     ros::init(argc, argv, "ball_detect_node"); //init ros nodd
     ros::NodeHandle nh; //create node handler
     pub_r = nh.advertise<core_msgs::ball_position>("/position", 100); //setting publisher
