@@ -17,7 +17,9 @@
 
 #include <ros/ros.h>
 #include <ros/package.h>
-#include "core_msgs/ball_position.h"
+
+#include "core_msgs/ball_position_r.h"
+#include "core_msgs/ball_position_b.h"
 
 #include "ros/ros.h"
 #include "sensor_msgs/LaserScan.h"
@@ -31,20 +33,21 @@
 #define PORT 4000
 #define IPADDR "172.16.0.1" // myRIO ipadress
 #define MYRIO
+#undef MYRIO
 
 #define DEBUG 0 
 #define PERIOD 10
 
 #define ANGULAR_RANGE 30
 
-#define TURN_RIGHT { data[1] = 1; }
-#define TURN_LEFT { data[1] = -1; }
+#define TURN_RIGHT { data[2] = 1; }
+#define TURN_LEFT { data[3] = 1; }
 #define GO_FRONT { data[0] = 1; }
-#define GO_BACK { data[0] = -1; }
-#define ROLLER_ON { data[2] = 1; }
-#define ROLLER_REVERSE { data[2] = -1; }
-#define TURN_BACK { data[3] = 1; }
+#define GO_BACK { data[1] = 1; }
+#define ROLLER_ON { data[4] = 1; }
+#define ROLLER_REVERSE { data[5] = 1; }
 
+#define TURN_BACK { data[6] = 1; }
 
 /* For timer features */
 uint32_t timer_ticks = 0;
@@ -89,9 +92,18 @@ int action;
 #endif
 
 /* Ball detection */
+
+/* Blue balls */
 int ball_number;
 float ball_X[20];
 float ball_Y[20];
+
+/* Red balls */
+int ball_number_r;
+float ball_X_r[20];
+float ball_Y_r[20];
+
+/* Unused in this scheme */
 float ball_distance[20];
 
 /* Track the closest ball. */
@@ -107,12 +119,14 @@ float data[24];
 void dataInit();
 void find_ball();
 void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan);
-void camera_Callback(const core_msgs::ball_position::ConstPtr& position);
+void camera_Callback(const core_msgs::ball_position_b::ConstPtr& position);
 int target(size_t ball_cnt);
+
+bool red_in_range();
 
 #define TIMEOUT 20
 #define MAXSIZE 20
-#define THRESH 30.0f
+#define THRESH 0.3f
 
 const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "SEARCH_GREEN", "APPROACH_GREEN", "RELEASE" };
 
@@ -125,7 +139,7 @@ int main(int argc, char **argv)
     #ifdef UNUSED
       ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, lidar_Callback);
     #endif
-    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
+    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position_b>("/position", 1000, camera_Callback);
 
 		dataInit();
 
@@ -146,7 +160,7 @@ int main(int argc, char **argv)
       if(timer_ticks>TIMEOUT*PERIOD){
         /* server side close() */
         if(timer_ticks < (TIMEOUT+1)*PERIOD+1){
-          data[21] = 1;
+          data[7] = 1;
           write(c_socket, data, sizeof(data)) ;
        } else { 
           /* client side close() */
@@ -209,22 +223,22 @@ int main(int argc, char **argv)
  * TODO : define separate callbacks for each colors(BLUE, RED, GREEN)
  * (ad-hoc) For now, we safely assume that there are blue balls only.
  */
-void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
+void camera_Callback(const core_msgs::ball_position_b::ConstPtr& position)
 {
-
     int count = position->size;
     ball_number = count;
     for(int i = 0; i < count; i++)
     {
         ball_X[i] = position->img_x[i];
-        ball_Y[i] = position->img_y[i];
+        ball_Y[i] = position->img_z[i];
         #ifndef DEBUG
           std::cout << "degree : "<< ball_degree[i];
           std::cout << "   distance : "<< ball_distance[i]<<std::endl;
         #endif
 		ball_distance[i] = ball_X[i]*ball_X[i]+ball_Y[i]*ball_X[i];
     }
-
+    if(count && DEBUG)
+      printf("ball[0] : (X=%f, Y=%f)\n", ball_X[0], ball_Y[0]);
     switch(machine_status) {
       case SEARCH:
         if(target(count) != -1)
@@ -311,6 +325,11 @@ void dataInit()
 	data[23] = 0; //GamepadButtonDown(_dev, BUTTON_RIGHT_THUMB);
 }
 
+bool red_in_range() {
+
+  bool result = false;
+  return result;
+}
 
 #ifdef NOT_REACHED
 

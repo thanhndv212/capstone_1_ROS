@@ -36,14 +36,14 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   include
 )
-add_executable(data_show_node src/data_show.cpp)
-add_dependencies(data_show_node core_msgs_generate_messages_cpp)
+# add_executable(data_show_node src/data_show.cpp)
+# add_dependencies(data_show_node core_msgs_generate_messages_cpp)
 
 add_executable(data_integration_node src/data_integration.cpp)
 add_dependencies(data_integration_node core_msgs_generate_messages_cpp)
-target_link_libraries(data_show_node
-  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
-)
+# target_link_libraries(data_show_node
+#  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+# )
 target_link_libraries(data_integration_node
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
