@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "core_msgs/ball_position_r.h"
+#include "core_msgs/ball_position.h"
 #include "core_msgs/ball_position_b.h"
 #include <cv_bridge/cv_bridge.h>
 
@@ -16,7 +16,6 @@ using namespace std;
 using namespace cv;
 
 // Declaration of trackbar functions to set HSV colorspace's parameters: In this section, we declare the functions that are displayed at the end on the multiple trackbars. We declare two sets of trackbar functions; one for the red ball, and one for the blue ball, Void functions are used so that they do not return any value. int is used when integer values are desired.
-
 int low_h2_r=160, high_h2_r=180;
 int low_h_r=0, low_s_r=107, low_v_r=129;
 int high_h_r=10, high_s_r=255, high_v_r=255;
@@ -71,11 +70,11 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "ball_detect_node"); //init ros nodd
     ros::NodeHandle nh; //create node handler
-    pub_r = nh.advertise<core_msgs::ball_position_r>("/position_r", 100); //setting publisher
+    pub_r = nh.advertise<core_msgs::ball_position>("/position", 100); //setting publisher
     pub_b = nh.advertise<core_msgs::ball_position_b>("/position_b", 100); //setting publisher
     /////////////////////////////////////////////////////////////////////////
 
-    core_msgs::ball_position_r msg_r;  //create a message for ball positions
+    core_msgs::ball_position msg_r;  //create a message for ball positions
     core_msgs::ball_position_b msg_b;
 
     //////////////////////////////////////////////////////////////////
@@ -164,6 +163,14 @@ int main(int argc, char **argv)
     for( size_t i = 0; i < contours_b.size(); i++ ){approxPolyDP( contours_b[i], contours_b_poly[i], 3, true );
         minEnclosingCircle( contours_b_poly[i], center_b[i], radius_b[i] );
     }
+int count_r =0;
+int count_b =0;
+vector<float> ball_r_x;
+vector<float> ball_r_y;
+vector<float> ball_r_z;
+vector<float> ball_b_x;
+vector<float> ball_b_y;
+vector<float> ball_b_z;
 
     for( size_t i = 0; i< contours_r.size(); i++ ){if (radius_r[i] > iMin_tracking_ball_size){Scalar color = Scalar( 0, 0, 255);
             drawContours( hsv_frame_red_canny, contours_r_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
@@ -176,14 +183,13 @@ int main(int argc, char **argv)
             string sx = floatToString(isx);
             string sy = floatToString(isy);
             string sz = floatToString(isz);
-   	    msg_r.size =ball_position_r[3];
-            msg_r.img_x = isx;
-            msg_r.img_y = isy;
-            msg_r.img_z = isz;
+            ball_r_x.push_back(isx);
+            ball_r_y.push_back(isy);
+            ball_r_z.push_back(isz);
+		count_r++;
             text = "Red ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_r[i],2,1,Scalar(0,255,0),2);
             circle( result, center_r[i], (int)radius_r[i], color, 2, 8, 0 );
-    pub_r.publish(msg_r);
         }
     }
 
@@ -197,17 +203,27 @@ int main(int argc, char **argv)
             string sx = floatToString(isx);
             string sy = floatToString(isy);
             string sz = floatToString(isz);
-   	    msg_b.size =ball_position_b[3];
-            msg_b.img_x = isx;
-            msg_b.img_y = isy;
-            msg_b.img_z = isz;
+
+            ball_b_x.push_back(isx);
+            ball_b_y.push_back(isy);
+            ball_b_z.push_back(isz);
+		count_b++;
             text = "Blue ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_b[i],2,1,Scalar(0,255,0),2);
             circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
-    pub_b.publish(msg_b);
         }
     }
+	msg_b.size = count_b;
+msg_b.img_x = ball_b_x;
+msg_b.img_y = ball_b_y;
+msg_b.img_z = ball_b_z;
+	msg_r.size = count_r;
+msg_r.img_x = ball_r_x;
+msg_r.img_y = ball_r_y;
+msg_r.img_z = ball_r_z;
 
+    pub_b.publish(msg_b);
+    pub_r.publish(msg_r);
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
     imshow("Video Capture",calibrated_frame);
     imshow("Object Detection_HSV_Red",hsv_frame_red);
