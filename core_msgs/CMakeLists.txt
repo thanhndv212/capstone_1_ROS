@@ -13,8 +13,7 @@ add_message_files( DIRECTORY msg
   ball_position.msg
   multiarray.msg
   markermsg.msg
-  ball_position_b.msg
-)
+  )
 
 ## Generate services in the 'srv' folder
 # add_service_files( DIRECTORY srv
