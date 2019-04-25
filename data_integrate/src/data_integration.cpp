@@ -18,9 +18,7 @@
 #include <ros/ros.h>
 #include <ros/package.h>
 
-#include "core_msgs/ball_position_r.h"
-#include "core_msgs/ball_position_b.h"
-
+#include "core_msgs/ball_position.h"
 #include "ros/ros.h"
 #include "sensor_msgs/LaserScan.h"
 #include "std_msgs/Int8.h"
@@ -119,7 +117,7 @@ float data[24];
 void dataInit();
 void find_ball();
 void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan);
-void camera_Callback(const core_msgs::ball_position_b::ConstPtr& position);
+void camera_Callback(const core_msgs::ball_position::ConstPtr& position);
 int target(size_t ball_cnt);
 
 bool red_in_range();
@@ -139,7 +137,7 @@ int main(int argc, char **argv)
     #ifdef UNUSED
       ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, lidar_Callback);
     #endif
-    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position_b>("/position", 1000, camera_Callback);
+    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
 
 		dataInit();
 
@@ -223,14 +221,14 @@ int main(int argc, char **argv)
  * TODO : define separate callbacks for each colors(BLUE, RED, GREEN)
  * (ad-hoc) For now, we safely assume that there are blue balls only.
  */
-void camera_Callback(const core_msgs::ball_position_b::ConstPtr& position)
+void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 {
-    int count = position->size;
+    int count = position->size_b;
     ball_number = count;
     for(int i = 0; i < count; i++)
     {
-        ball_X[i] = position->img_x[i];
-        ball_Y[i] = position->img_z[i];
+        ball_X[i] = position->img_x_b[i];
+        ball_Y[i] = position->img_z_b[i];
         #ifndef DEBUG
           std::cout << "degree : "<< ball_degree[i];
           std::cout << "   distance : "<< ball_distance[i]<<std::endl;
