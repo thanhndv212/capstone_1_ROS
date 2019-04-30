@@ -15,12 +15,12 @@ using namespace std;
 using namespace cv;
 
 // Declaration of trackbar functions to set HSV colorspace's parameters: In this section, we declare the functions that are displayed at the end on the multiple trackbars. We declare two sets of trackbar functions; one for the red ball, and one for the blue ball, Void functions are used so that they do not return any value. int is used when integer values are desired.
-int low_h2_r=160, high_h2_r=180;
-int low_h_r=0, low_s_r=107, low_v_r=129;
-int high_h_r=10, high_s_r=255, high_v_r=255;
+int low_h2_r=141, high_h2_r=180;
+int low_h_r=0, low_s_r=200, low_v_r=0;
+int high_h_r=15, high_s_r=255, high_v_r=255;
 
-int low_h_b=48, low_s_b=120, low_v_b=0;
-int high_h_b=120, high_s_b=255, high_v_b=255;
+int low_h_b=74, low_s_b=192, low_v_b=0;
+int high_h_b=113, high_s_b=255, high_v_b=255;
 void on_low_h_thresh_trackbar_red(int, void *);
 void on_high_h_thresh_trackbar_red(int, void *);
 void on_low_h2_thresh_trackbar_red(int, void *);
@@ -57,19 +57,19 @@ int ratio_b = 3;
 int kernel_size_b = 3;
 
 // Initialization of variable for dimension of the target: We set a float value for the radius of the desired targets, in this case the balls.
-float fball_radius = 0.0734 ; // meter: The unit which is used in the initialization.
+float fball_radius = 0.074 ; // meter: The unit which is used in the initialization.
 
 // Initialization of variable for camera calibration paramters: Like we did in our second class, we have to calibrate our main camera, and obtain the intrinsic and distortion parameters in order to undistort the images seen.
 Mat distCoeffs;
-float intrinsic_data[9] = {596.497705, 0, 318.023172, 0, 565.010517, 271.337191, 0, 0, 1};
-float distortion_data[5] = {0.073823, -0.079246, 0.005644, -0.005499, 0};
+float intrinsic_data[9] = {646.25, 0, 321.3, 0, 650, 245.45, 0, 0, 1};
+float distortion_data[5] = {0.09667, -0.26965, -0.000857, 0, 0};
 
 // Initialization of variable for text drawing: The text which we see at the results is defined here
 double fontScale = 2;
 int thickness = 3;
 String text ;
 
-int iMin_tracking_ball_size = 20; // This is the minimum tracking ball size, in pixels.
+int iMin_tracking_ball_size = 12; // This is the minimum tracking ball size, in pixels.
 
 /////ROS publisher
 ros::Publisher pub;
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     vector<vector<Point> > contours_b;
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
-    VideoCapture cap(0);
+    VideoCapture cap(1);
     namedWindow("Video Capture", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Red", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
@@ -122,6 +122,7 @@ int main(int argc, char **argv)
     moveWindow("Canny Edge for Red Ball",   50,730);
     moveWindow("Canny Edge for Blue Ball", 470,730);
     moveWindow("Result", 470, 0);
+
 
 
 // Trackbars to set thresholds for HSV values : Red ball: In this part, we set the thresholds, in HSV color space values, for the red ball's trackbar. Since the red color has empty space in between, we need two sets of H values fro red ball.
@@ -210,7 +211,7 @@ vector<float> ball_r_y;
 vector<float> ball_r_z;
 vector<float> ball_b_x;
 vector<float> ball_b_y;
-vector<float> ball_b_z;
+vector<float> ball_b_z, ball_b_radius , ball_r_radius;
 
     for( size_t i = 0; i< contours_r.size(); i++ ){if (radius_r[i] > iMin_tracking_ball_size){Scalar color = Scalar( 0, 0, 255);
             drawContours( hsv_frame_red_canny, contours_r_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
@@ -220,47 +221,85 @@ vector<float> ball_b_z;
             float isx = ball_position_r[0];
             float isy = ball_position_r[1];
             float isz = ball_position_r[2];
+            float radi = ball_position_r[3];
             string sx = floatToString(isx);
             string sy = floatToString(isy);
             string sz = floatToString(isz);
             ball_r_x.push_back(isx);
             ball_r_y.push_back(isy);
             ball_r_z.push_back(isz);
-		count_r++;
+            ball_r_radius.push_back(radi);
+		           count_r++;
             text = "Red ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_r[i],2,1,Scalar(0,255,0),2);
             circle( result, center_r[i], (int)radius_r[i], color, 2, 8, 0 );
         }
     }
 
-    for( size_t i = 0; i< contours_b.size(); i++ ){if(radius_b[i] > iMin_tracking_ball_size){Scalar color = Scalar( 255, 0, 0);
+    for( size_t i = 0; i< contours_b.size(); i++ ){
+      if(radius_b[i] > iMin_tracking_ball_size){
+            Scalar color = Scalar( 255, 0, 0);
             drawContours( hsv_frame_blue_canny, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
             vector<float> ball_position_b;
             ball_position_b = pixel2point(center_b[i], radius_b[i]);
             float isx = ball_position_b[0];
             float isy = ball_position_b[1];
             float isz = ball_position_b[2];
+            float radi = ball_position_b[3];
             string sx = floatToString(isx);
             string sy = floatToString(isy);
             string sz = floatToString(isz);
-
             ball_b_x.push_back(isx);
             ball_b_y.push_back(isy);
             ball_b_z.push_back(isz);
-		count_b++;
+            ball_b_radius.push_back(radi);
+		          count_b++;
             text = "Blue ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_b[i],2,1,Scalar(0,255,0),2);
             circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
         }
     }
-	msg.size_b = count_b;
+float x1, y1, x2, y2;
+if (ball_b_z.size()>1){
+    x1, x2 =ball_b_x[0],ball_b_x[1];
+    y1, y2 = ball_b_y[0],ball_b_y[1];
+    float diff = pow((x1-x2),2)+pow((y1-y2),2);
+    float l = ball_b_radius[0]-ball_b_radius[1];
+    if (abs(l)<diff){
+      count_b--;
+      float i=0;
+      if (l>0)i=1;
+      ball_b_x.erase(ball_b_x.begin()+i);ball_b_y.erase(ball_b_y.begin()+i);
+      ball_b_z.erase(ball_b_z.begin()+i);ball_b_radius.erase(ball_b_radius.begin()+i);
+  }
+}
+if (ball_r_z.size()>1){
+    x1, x2 =ball_r_x[0],ball_r_x[1];
+    y1, y2 = ball_r_y[0],ball_r_y[1];
+    float diff = pow((x1-x2),2)+pow((y1-y2),2);
+    float l = ball_r_radius[0]-ball_r_radius[1];
+    if (abs(l)<diff){
+      count_r--;
+      float i=0;
+      if (l>0) i=1;
+      ball_r_x.erase(ball_r_x.begin()+i);ball_r_y.erase(ball_r_y.begin()+i);
+      ball_r_z.erase(ball_r_z.begin()+i);ball_r_radius.erase(ball_r_radius.begin()+i);
+      }
+}
+
+msg.size_b = count_b;
 msg.img_x_b = ball_b_x;
 msg.img_y_b = ball_b_y;
 msg.img_z_b = ball_b_z;
-	msg.size_r = count_r;
+msg.size_r = count_r;
 msg.img_x_r = ball_r_x;
 msg.img_y_r = ball_r_y;
 msg.img_z_r = ball_r_z;
+
+if(count_r)
+  {cout<<count_r<<endl;
+  printf("%f\t%f\t%f\n", ball_r_x[0], ball_r_y[0], ball_r_z[0]);}
+
 
     pub.publish(msg);
 
@@ -312,7 +351,7 @@ vector<float> pixel2point(Point center, int radius){vector<float> position;
     Xc = roundf(Xc * 1000) / 1000;
     Yc = roundf(Yc * 1000) / 1000;
     Zc = roundf(Zc * 1000) / 1000;
-
+    Zc = sqrt(pow(Zc,2)-pow(0.28,2));
     position.push_back(Xc);
     position.push_back(Yc);
     position.push_back(Zc);
