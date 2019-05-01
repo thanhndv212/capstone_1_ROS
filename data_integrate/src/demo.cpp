@@ -34,20 +34,21 @@
 
 // go 1m front / rotate right (seconds)
 #define TIMESLICE_FRONT 3.0f
-#define TIMESLICE_ROTATE 4.0f
+#define TIMESLICE_ROTATE 3.3f
+#define TIMESLICE_BACK 2.5f
 
 // This node shuts down after (seconds)
-#define TIMEOUT 15
+#define TIMEOUT 12
 
 #define DEBUG 0 
 #define PERIOD 40
 
-#define GO_FRONT { data[0] = 1; }
-#define GO_BACK { data[1] = 1; }
-#define TURN_RIGHT { data[2] = 1; }
-#define TURN_LEFT { data[3] = 1; }
-#define ROLLER_ON { data[4] = 1; }
-#define ROLLER_REVERSE { data[5] = 1; }
+#define GO_FRONT { data[0] = -0.17f; data[1] = 1; data[2] = 1.75f; data[3] = 1;  }
+#define GO_BACK { data[0] = -0.06f; data[1] = -1; data[2] = -1.64f; data[3] = 1;  }
+#define TURN_RIGHT { data[0] = 1; data[1] = -0.17f; data[2] = -0.17f; data[3] = 1; }
+#define TURN_LEFT { data[0] = -1; data[1] = 0.15f; data[2] = 2.98f; data[3] = 1; }
+#define ROLLER_ON { data[17] = 1; }
+#define ROLLER_REVERSE { data[14] = 1; }
 
 /* For timer features */
 uint32_t timer_ticks = 0;
@@ -180,21 +181,22 @@ int main(int argc, char **argv)
       dataInit();
 
       /* Go front for 1m */
-      if( 0 <= timer_ticks && timer_ticks < (int) (TIMESLICE_FRONT * PERIOD) ) {
-        GO_FRONT
+      if( 0 <= timer_ticks && timer_ticks < (int) (TIMESLICE_FRONT * PERIOD)  ) {
+        GO_FRONT ROLLER_ON
         printf("[%2.2f s] Go front\n", 0.025f * timer_ticks);
       }
       /* Turn 180 degrees */
       else if( ((int) TIMESLICE_FRONT * PERIOD) <= timer_ticks && timer_ticks < ((int) (TIMESLICE_FRONT + TIMESLICE_ROTATE)*PERIOD) ) {
-        TURN_RIGHT
+        TURN_LEFT ROLLER_ON
         printf("[%.2f s] Turn right\n", 0.025f * timer_ticks);
       }
       /* Go front 1m */
-      else if( ((int) (TIMESLICE_ROTATE + TIMESLICE_FRONT)*PERIOD) <= timer_ticks && timer_ticks < ((int) ((TIMESLICE_FRONT * 2 + TIMESLICE_ROTATE)*PERIOD) )) {
+      else if(((int) (TIMESLICE_ROTATE + TIMESLICE_FRONT)*PERIOD) <= timer_ticks && timer_ticks < ((int) ((TIMESLICE_FRONT * 2 + TIMESLICE_ROTATE - 0.8)*PERIOD) )) {
         GO_FRONT
         printf("[%.2f s] Go front\n", 0.025f * timer_ticks);
       }
       else {
+        ROLLER_REVERSE
         printf("[%.2f s] Waiting before shutdown\n", 0.025f * timer_ticks);
       }
       }
