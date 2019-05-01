@@ -58,3 +58,12 @@ target_link_libraries(demo_node
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
 
+add_executable(demo_simple src/demov2.cpp)
+add_dependencies(demo_simple core_msgs_generate_messages_cpp)
+# target_link_libraries(data_show_node
+#  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+# )
+target_link_libraries(demo_simple
+  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+)
+

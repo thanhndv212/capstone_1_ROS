@@ -16,7 +16,7 @@ extern "C" {
 using namespace std;
 
 #define PORT 4000
-#define IPADDR "127.0.0.1"
+#define IPADDR "172.16.0.1"
 //#define IPADDR "127.0.0.1"
 #define resol_x 640
 #define resol_y 480

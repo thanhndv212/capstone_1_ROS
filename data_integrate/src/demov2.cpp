@@ -26,31 +26,31 @@
 
 #include "opencv2/opencv.hpp"
 
-#define RAD2DEG(x) ((x)*180./M_PI)
 
+/* TCPIP Connection */
 #define PORT 4000
 #define IPADDR "172.16.0.1" // myRIO ipadress
 #define MYRIO
+#undef MYRIO
 
-// go 1m front / rotate right (seconds)
-#define TIMESLICE_FRONT 3.0f
-#define TIMESLICE_ROTATE 4.0f
-
-// This node shuts down after (seconds)
-#define TIMEOUT 15
-
-#define DEBUG 0 
-#define PERIOD 40
-
-#define GO_FRONT { data[0] = 1; }
-#define GO_BACK { data[1] = 1; }
 #define TURN_RIGHT { data[2] = 1; }
 #define TURN_LEFT { data[3] = 1; }
+#define GO_FRONT { data[0] = 1; }
+#define GO_BACK { data[1] = 1; }
 #define ROLLER_ON { data[4] = 1; }
 #define ROLLER_REVERSE { data[5] = 1; }
+#define TURN_BACK { data[6] = 1; }
+
+
+#define DEBUG 10 
+#define PERIOD 10
+
+#define RAD2DEG(x) ((x)*180./M_PI)
+#define ANGULAR_RANGE 30
+
 
 /* For timer features */
-uint32_t timer_ticks = 0;
+static uint32_t timer_ticks = 0;
 uint32_t current_ticks = 0;
 
 /* State variable declaration */
@@ -78,7 +78,7 @@ enum color closest_ball = NONE;
 /* Number of balls holding */
 int ball_cnt = 0; 
 
-#ifdef LIDAR 
+#ifdef NOT_REACHED
 /* Synchronization primitives and Lidar */
 boost::mutex map_mutex;
 
@@ -93,13 +93,13 @@ int action;
 
 /* Ball detection */
 
-/* Blue balls */
-int ball_number;
-float ball_X[20];
-float ball_Y[20];
+/* Blue balls in sight */
+int blue_cnt;
+float ball_X_b[20];
+float ball_Y_b[20];
 
-/* Red balls */
-int ball_number_r;
+/* Red balls in sight */
+int red_cnt;
 float ball_X_r[20];
 float ball_Y_r[20];
 
@@ -124,25 +124,23 @@ int target(size_t ball_cnt);
 
 bool red_in_range();
 
+#define TIMEOUT 20
 #define MAXSIZE 20
 #define THRESH 0.3f
-
-
 
 const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "SEARCH_GREEN", "APPROACH_GREEN", "RELEASE" };
 
 /* Main routine */
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "data_integation");
+    ros::init(argc, argv, "demo_simple");
     ros::NodeHandle n;
 
+    printf("(demo-simple) start\n");
     #ifdef LIDAR
       ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, lidar_Callback);
     #endif
-    #ifdef WEBCAM
     ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
-    #endif
 
 		dataInit();
 
@@ -158,7 +156,6 @@ int main(int argc, char **argv)
       return -1;
     }
     #endif
-
     while(ros::ok){
       /* This part is for TCP connection teardown */
       if(timer_ticks>TIMEOUT*PERIOD){
@@ -174,29 +171,39 @@ int main(int argc, char **argv)
           return 0;
         }
         #endif
+        printf("(demo-simple) end\n");
         return 0;
       } else {
 
       dataInit();
 
-      /* Go front for 1m */
-      if( 0 <= timer_ticks && timer_ticks < (int) (TIMESLICE_FRONT * PERIOD) ) {
-        GO_FRONT
-        printf("[%2.2f s] Go front\n", 0.025f * timer_ticks);
-      }
-      /* Turn 180 degrees */
-      else if( ((int) TIMESLICE_FRONT * PERIOD) <= timer_ticks && timer_ticks < ((int) (TIMESLICE_FRONT + TIMESLICE_ROTATE)*PERIOD) ) {
-        TURN_RIGHT
-        printf("[%.2f s] Turn right\n", 0.025f * timer_ticks);
-      }
-      /* Go front 1m */
-      else if( ((int) (TIMESLICE_ROTATE + TIMESLICE_FRONT)*PERIOD) <= timer_ticks && timer_ticks < ((int) ((TIMESLICE_FRONT * 2 + TIMESLICE_ROTATE)*PERIOD) )) {
-        GO_FRONT
-        printf("[%.2f s] Go front\n", 0.025f * timer_ticks);
-      }
-      else {
-        printf("[%.2f s] Waiting before shutdown\n", 0.025f * timer_ticks);
-      }
+      switch(machine_status) {
+        case SEARCH:
+          // during search phase, simply turn right
+          TURN_RIGHT
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case APPROACH:
+          // approaching phase naively goes front, until ball is in range.
+          GO_FRONT
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case RED_AVOIDANCE:
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case COLLECT:
+          GO_FRONT ROLLER_ON
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case SEARCH_GREEN:
+          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+          break;
+        case APPROACH_GREEN:
+          break;
+        case RELEASE: // This mode needs some senitel code for backup
+          break;
+        default:
+          break;
       }
 
     #ifdef MYRIO
@@ -205,7 +212,7 @@ int main(int argc, char **argv)
       printf("%d bytes written\n", (int) written);
     #endif
 
-      
+      }
 	    ros::Duration(0.025).sleep();
 	    ros::spinOnce();
       timer_ticks++;
@@ -215,7 +222,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-#ifdef WEBCAM
+
 /* 
  * camera_Callback : Updates position/ball_count of all colors
  * TODO : define separate callbacks for each colors(BLUE, RED, GREEN)
@@ -223,84 +230,50 @@ int main(int argc, char **argv)
  */
 void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 {
-    int count = position->size_b;
-    ball_number = count;
-    for(int i = 0; i < count; i++)
-    {
-        ball_X[i] = position->img_x_b[i];
-        ball_Y[i] = position->img_z_b[i];
-        #ifndef DEBUG
-          std::cout << "degree : "<< ball_degree[i];
-          std::cout << "   distance : "<< ball_distance[i]<<std::endl;
-        #endif
-		ball_distance[i] = ball_X[i]*ball_X[i]+ball_Y[i]*ball_X[i];
+    int count_b = position->size_b;
+    int count_r = position->size_r;
+
+    blue_cnt = count_b;
+    red_cnt = count_r;
+
+    for(int i = 0; i < count_b; i++) {
+      ball_X_b[i] = position->img_x_b[i];
+      ball_Y_b[i] = position->img_z_b[i];
+		  // ball_distance[i] = ball_X[i]*ball_X[i]+ball_Y[i]*ball_X[i];
     }
-    if(count && DEBUG)
-      printf("ball[0] : (X=%f, Y=%f)\n", ball_X[0], ball_Y[0]);
+    for(int j = 0; j < count_r; j++) {
+      ball_X_r[j] = position->img_x_r[j];
+      ball_X_r[j] = position->img_z_r[j];
+    }
+
     switch(machine_status) {
       case SEARCH:
-        if(target(count) != -1)
-          machine_status = APPROACH;
-        break;
-      case APPROACH:
-        if(target(count) == -1)
-          machine_status = SEARCH;
-        else if(ball_Y[target(count)] < THRESH)
+        if( fabs(ball_X_b[0]) < 0.5f) 
           machine_status = COLLECT;
         break;
-      case RED_AVOIDANCE:
-      case COLLECT:
-      {
-        int idx = target(count);
-        if(idx == -1) {
-          printf("Consumed ball. Ball count = %d\n", ++ball_cnt);
-          machine_status = SEARCH;
-        } else if(ball_Y[idx] >= THRESH) {
-          printf("Consumed ball. Ball count = %d\n", ++ball_cnt);
-          machine_status = SEARCH;
-        }
+      case APPROACH:
         break;
-      }
+      case RED_AVOIDANCE:
+        break;
+      case COLLECT:
+        if( fabs(ball_X_b[0]) > 0.5f)
+          machine_status = SEARCH;
+        break;
       case SEARCH_GREEN:
+        break;
       case APPROACH_GREEN:
+        break;
       case RELEASE:
+        break;
       default:
         break;
     }
-}
-
-int target(size_t ball_cnt) {
-  // No blue ball in range : should keep spinning
-  if(!ball_cnt)
-    return -1;
-
-  // There is a blue ball : should align ball to center
-  int k = 0;
-  float x_range = fabs(ball_X[0]);
-
-  for(int i = 0 ; i < ball_cnt; i++) {
-    if(x_range > fabs(ball_X[i])){
-      x_range = fabs(ball_X[i]);
-      k = i;
-    }
-  }
-  if(RAD2DEG(atan(x_range/ball_Y[k])) < ANGULAR_RANGE) 
-    return k;
-  else
-    return -1;
 }
 
 void find_ball()
 {
 	data[20]=1;
 }
-
-bool red_in_range() {
-
-  bool result = false;
-  return result;
-}
-#endif
 
 void dataInit()
 {
@@ -330,6 +303,11 @@ void dataInit()
 	data[23] = 0; //GamepadButtonDown(_dev, BUTTON_RIGHT_THUMB);
 }
 
+bool red_in_range() {
+
+  bool result = false;
+  return result;
+}
 
 #ifdef NOT_REACHED
 
