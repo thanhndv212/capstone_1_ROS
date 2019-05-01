@@ -15,12 +15,12 @@ using namespace std;
 using namespace cv;
 
 // Declaration of trackbar functions to set HSV colorspace's parameters: In this section, we declare the functions that are displayed at the end on the multiple trackbars. We declare two sets of trackbar functions; one for the red ball, and one for the blue ball, Void functions are used so that they do not return any value. int is used when integer values are desired.
-int low_h2_r=115, high_h2_r=180;
-int low_h_r=0, low_s_r=70, low_v_r=85;
-int high_h_r=43, high_s_r=255, high_v_r=180;
+int low_h2_r=140, high_h2_r=180;
+int low_h_r=0, low_s_r=190, low_v_r=40;
+int high_h_r=15, high_s_r=255, high_v_r=255;
 
-int low_h_b=48, low_s_b=120, low_v_b=0;
-int high_h_b=120, high_s_b=255, high_v_b=255;
+int low_h_b=90, low_s_b=90, low_v_b=40;
+int high_h_b=113, high_s_b=255, high_v_b=255;
 void on_low_h_thresh_trackbar_red(int, void *);
 void on_high_h_thresh_trackbar_red(int, void *);
 void on_low_h2_thresh_trackbar_red(int, void *);
@@ -57,19 +57,19 @@ int ratio_b = 3;
 int kernel_size_b = 3;
 
 // Initialization of variable for dimension of the target: We set a float value for the radius of the desired targets, in this case the balls.
-float fball_radius = 0.0734 ; // meter: The unit which is used in the initialization.
+float fball_radius = 0.075 ; // meter: The unit which is used in the initialization.
 
 // Initialization of variable for camera calibration paramters: Like we did in our second class, we have to calibrate our main camera, and obtain the intrinsic and distortion parameters in order to undistort the images seen.
 Mat distCoeffs;
-float intrinsic_data[9] = {596.497705, 0, 318.023172, 0, 565.010517, 271.337191, 0, 0, 1};
-float distortion_data[5] = {0.073823, -0.079246, 0.005644, -0.005499, 0};
+float intrinsic_data[9] = {646.25, 0, 321.3, 0, 650, 245.45, 0, 0, 1};
+float distortion_data[5] = {0.09667, -0.26965, -0.000857, 0, 0};
 
 // Initialization of variable for text drawing: The text which we see at the results is defined here
 double fontScale = 2;
 int thickness = 3;
 String text ;
 
-int iMin_tracking_ball_size = 20; // This is the minimum tracking ball size, in pixels.
+int iMin_tracking_ball_size = 12; // This is the minimum tracking ball size, in pixels.
 
 /////ROS publisher
 ros::Publisher pub;
@@ -122,6 +122,7 @@ int main(int argc, char **argv)
     moveWindow("Canny Edge for Red Ball",   50,730);
     moveWindow("Canny Edge for Blue Ball", 470,730);
     moveWindow("Result", 470, 0);
+
 
 
 // Trackbars to set thresholds for HSV values : Red ball: In this part, we set the thresholds, in HSV color space values, for the red ball's trackbar. Since the red color has empty space in between, we need two sets of H values fro red ball.
@@ -295,6 +296,11 @@ msg.img_x_r = ball_r_x;
 msg.img_y_r = ball_r_y;
 msg.img_z_r = ball_r_z;
 
+if(count_r)
+  {cout<<count_r<<endl;
+  printf("%f\t%f\t%f\n", ball_r_x[0], ball_r_y[0], ball_r_z[0]);}
+
+
     pub.publish(msg);
 
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
@@ -345,7 +351,7 @@ vector<float> pixel2point(Point center, int radius){vector<float> position;
     Xc = roundf(Xc * 1000) / 1000;
     Yc = roundf(Yc * 1000) / 1000;
     Zc = roundf(Zc * 1000) / 1000;
-
+    Zc = sqrt(pow(Zc,2)-pow(0.28,2));
     position.push_back(Xc);
     position.push_back(Yc);
     position.push_back(Zc);
