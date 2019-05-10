@@ -15,11 +15,11 @@ using namespace std;
 using namespace cv;
 
 // Declaration of trackbar functions to set HSV colorspace's parameters: In this section, we declare the functions that are displayed at the end on the multiple trackbars. We declare two sets of trackbar functions; one for the red ball, and one for the blue ball, Void functions are used so that they do not return any value. int is used when integer values are desired.
-int low_h2_r=140, high_h2_r=180;
-int low_h_r=0, low_s_r=190, low_v_r=40;
+int low_h2_r=155, high_h2_r=180;
+int low_h_r=0, low_s_r=200, low_v_r=100;
 int high_h_r=15, high_s_r=255, high_v_r=255;
 
-int low_h_b=90, low_s_b=90, low_v_b=40;
+int low_h_b=90, low_s_b=160, low_v_b=70;
 int high_h_b=113, high_s_b=255, high_v_b=255;
 void on_low_h_thresh_trackbar_red(int, void *);
 void on_high_h_thresh_trackbar_red(int, void *);
@@ -57,7 +57,7 @@ int ratio_b = 3;
 int kernel_size_b = 3;
 
 // Initialization of variable for dimension of the target: We set a float value for the radius of the desired targets, in this case the balls.
-float fball_radius = 0.075 ; // meter: The unit which is used in the initialization.
+float fball_radius = 0.074 ; // meter: The unit which is used in the initialization.
 
 // Initialization of variable for camera calibration paramters: Like we did in our second class, we have to calibrate our main camera, and obtain the intrinsic and distortion parameters in order to undistort the images seen.
 Mat distCoeffs;
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     vector<vector<Point> > contours_b;
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
-    VideoCapture cap(1);
+    VideoCapture cap(0);
     namedWindow("Video Capture", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Red", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
@@ -192,100 +192,131 @@ int main(int argc, char **argv)
     vector<Point2f>center_b( contours_b.size() );
     vector<float>radius_r( contours_r.size() );
     vector<float>radius_b( contours_b.size() );
-////////////////////////////////////////////////
-    //msg_b.size =contours_b.size();//adding numbers of blue balls to /ball_position messagem
-    //msg_b.img_x.resize(contours_b.size());
-    //msg_b.img_y.resize(contours_b.size());
-    /////////////////////////////////////
-    for( size_t i = 0; i < contours_r.size(); i++ ){approxPolyDP( contours_r[i], contours_r_poly[i], 3, true );
-        minEnclosingCircle( contours_r_poly[i], center_r[i], radius_r[i] );
-    }
 
-    for( size_t i = 0; i < contours_b.size(); i++ ){approxPolyDP( contours_b[i], contours_b_poly[i], 3, true );
-        minEnclosingCircle( contours_b_poly[i], center_b[i], radius_b[i] );
-    }
+        for( size_t i = 0; i < contours_b.size(); i++ ){
+            approxPolyDP( contours_b[i], contours_b_poly[i], 3, true );
+            minEnclosingCircle( contours_b_poly[i], center_b[i], radius_b[i] );
+        }
+        for( size_t i = 0; i < contours_r.size(); i++ ){
+            approxPolyDP( contours_r[i], contours_r_poly[i], 3, true );
+            minEnclosingCircle( contours_r_poly[i], center_r[i], radius_r[i] );
+        }
 int count_r =0;
 int count_b =0;
-vector<float> ball_r_x;
-vector<float> ball_r_y;
-vector<float> ball_r_z;
-vector<float> ball_b_x;
-vector<float> ball_b_y;
-vector<float> ball_b_z, ball_b_radius , ball_r_radius;
+vector<float> ball_r_x, ball_r_y, ball_r_z, ball_r_radius;
+vector<float> ball_b_x, ball_b_y, ball_b_z, ball_b_radius;
 
-    for( size_t i = 0; i< contours_r.size(); i++ ){if (radius_r[i] > iMin_tracking_ball_size){Scalar color = Scalar( 0, 0, 255);
-            drawContours( hsv_frame_red_canny, contours_r_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
-
-            vector<float> ball_position_r;
-            ball_position_r = pixel2point(center_r[i], radius_r[i]);
-            float isx = ball_position_r[0];
-            float isy = ball_position_r[1];
-            float isz = ball_position_r[2];
-            float radi = ball_position_r[3];
-            string sx = floatToString(isx);
-            string sy = floatToString(isy);
-            string sz = floatToString(isz);
-            ball_r_x.push_back(isx);
-            ball_r_y.push_back(isy);
-            ball_r_z.push_back(isz);
-            ball_r_radius.push_back(radi);
-		           count_r++;
-            text = "Red ball:" + sx + "," + sy + "," + sz;
-            putText(result, text, center_r[i],2,1,Scalar(0,255,0),2);
-            circle( result, center_r[i], (int)radius_r[i], color, 2, 8, 0 );
-        }
-    }
-
+ int houghcircle =0;
     for( size_t i = 0; i< contours_b.size(); i++ ){
       if(radius_b[i] > iMin_tracking_ball_size){
-            Scalar color = Scalar( 255, 0, 0);
-            drawContours( hsv_frame_blue_canny, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
             vector<float> ball_position_b;
             ball_position_b = pixel2point(center_b[i], radius_b[i]);
-            float isx = ball_position_b[0];
-            float isy = ball_position_b[1];
-            float isz = ball_position_b[2];
-            float radi = ball_position_b[3];
-            string sx = floatToString(isx);
-            string sy = floatToString(isy);
-            string sz = floatToString(isz);
-            ball_b_x.push_back(isx);
-            ball_b_y.push_back(isy);
-            ball_b_z.push_back(isz);
-            ball_b_radius.push_back(radi);
-		          count_b++;
-            text = "Blue ball:" + sx + "," + sy + "," + sz;
-            putText(result, text, center_b[i],2,1,Scalar(0,255,0),2);
-            circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
+            ball_b_x.push_back(ball_position_b[0]);
+            ball_b_y.push_back(ball_position_b[1]);
+            ball_b_z.push_back(ball_position_b[2]);
+            ball_b_radius.push_back(ball_position_b[3]);
+		        count_b++;
+            float x1, y1, x2, y2;
+            x1, x2 =center_b[i].x,center_b[i+1].x;
+            y1, y2 =center_b[i].y,center_b[i].y;
+            float diff = pow((x1-x2),2)+pow((y1-y2),2);
+            float l = radius_b[i]-radius_b[i+1];
+            float dis = ball_position_b[0]*100;
+            float pixel = -0.2307*center_b[i].y+97.44;
+            if (abs(dis-pixel)<10){
+                Scalar color = Scalar( 255, 0, 0);
+                drawContours( hsv_frame_blue_canny, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+                text = "Solution1";
+                cout << ball_position_b[0]<<endl;
+                putText(result, text, center_b[i],2,1,Scalar(0,255,0),2);
+                circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
+                if (abs(l)<diff)i++;
+              }
+            else {houghcircle = 1; break;}
         }
-    }
-float x1, y1, x2, y2;
-if (ball_b_z.size()>1){
-    x1, x2 =ball_b_x[0],ball_b_x[1];
-    y1, y2 = ball_b_y[0],ball_b_y[1];
-    float diff = pow((x1-x2),2)+pow((y1-y2),2);
-    float l = ball_b_radius[0]-ball_b_radius[1];
-    if (abs(l)<diff){
-      count_b--;
-      float i=0;
-      if (l>0)i=1;
-      ball_b_x.erase(ball_b_x.begin()+i);ball_b_y.erase(ball_b_y.begin()+i);
-      ball_b_z.erase(ball_b_z.begin()+i);ball_b_radius.erase(ball_b_radius.begin()+i);
-  }
-}
-if (ball_r_z.size()>1){
-    x1, x2 =ball_r_x[0],ball_r_x[1];
-    y1, y2 = ball_r_y[0],ball_r_y[1];
-    float diff = pow((x1-x2),2)+pow((y1-y2),2);
-    float l = ball_r_radius[0]-ball_r_radius[1];
-    if (abs(l)<diff){
-      count_r--;
-      float i=0;
-      if (l>0) i=1;
-      ball_r_x.erase(ball_r_x.begin()+i);ball_r_y.erase(ball_r_y.begin()+i);
-      ball_r_z.erase(ball_r_z.begin()+i);ball_r_radius.erase(ball_r_radius.begin()+i);
       }
-}
+  if (houghcircle){
+    vector<float> ball_b_x;
+    vector<float> ball_b_y;
+    vector<float> ball_b_z;
+    vector<Vec3f> circles_b;
+    HoughCircles(hsv_frame_blue_canny,circles_b,HOUGH_GRADIENT, 1, 30, 200, 20, 5, 200); //proceed circle
+    cout << circles_b.size()<<endl;
+    for(int k=0;k<circles_b.size();k++){
+      Vec3i c = circles_b[k];
+      Point center = Point(c[0], c[1]);
+      int radius = c[2];
+      vector<float> params;
+      params = pixel2point(center, radius);  //the information of k-th circle
+      float cx=params[0];  //x position of k-th circle
+      float cy=params[1];  //y position
+      float cz=params[2]; //radius
+      count_b++;
+      ball_b_x.push_back(cx);
+      ball_b_y.push_back(cy);
+      ball_b_z.push_back(cz);
+      cout << ball_b_z[k]<<endl;
+      text = "Solution2";
+      putText(result, text, center,2,1,Scalar(255,0,0),2);
+      circle( result, center, radius, Scalar(255,0,0), 2, 8, 0 );
+       }}
+houghcircle =0;
+for( size_t i = 0; i< contours_r.size(); i++ ){
+    if(radius_r[i] > iMin_tracking_ball_size){
+          vector<float> ball_position_r;
+          ball_position_r = pixel2point(center_r[i], radius_r[i]);
+          ball_r_x.push_back(ball_position_r[0]);
+          ball_r_y.push_back(ball_position_r[1]);
+          ball_r_z.push_back(ball_position_r[2]);
+          ball_r_radius.push_back(ball_position_r[3]);
+   		    count_r++;
+          float x1, y1, x2, y2;
+          x1, x2 =center_r[i].x,center_r[i+1].x;
+          y1, y2 =center_r[i].y,center_r[i].y;
+          float diff = pow((x1-x2),2)+pow((y1-y2),2);
+          float l = radius_r[i]-radius_r[i+1];
+          float dis = ball_position_r[0]*100;
+          float pixel = -0.2307*center_r[i].y+97.44;
+          if (abs(dis-pixel)<10){
+                Scalar color = Scalar( 0, 0, 255);
+                drawContours( hsv_frame_red_canny, contours_r_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+                text = "Solution1";
+                cout << ball_position_r[0]<<endl;
+
+                putText(result, text, center_r[i],2,1,Scalar(0,255,0),2);
+                circle( result, center_r[i], (int)radius_r[i], color, 2, 8, 0 );
+                if (abs(l)<diff)i++;
+                }
+          else {   houghcircle = 1; break;}
+      }
+    }
+if (houghcircle){
+       vector<float> ball_r_x;
+       vector<float> ball_r_y;
+       vector<float> ball_r_z;
+       vector<Vec3f> circles_r;
+       HoughCircles(hsv_frame_red_canny,circles_r,HOUGH_GRADIENT, 1, 30, 200, 20, 5, 200); //proceed circle
+       cout << circles_r.size()<<endl;
+       for(int k=0;k<circles_r.size();k++){
+         Vec3i c = circles_r[k];
+         Point center = Point(c[0], c[1]);
+         int radius = c[2];
+         vector<float> params;
+         params = pixel2point(center, radius);  //the information of k-th circle
+         float cx=params[0];  //x position of k-th circle
+         float cy=params[1];  //y position
+         float cz=params[2]; //radius
+         count_r++;
+         ball_r_x.push_back(cx);
+         ball_r_y.push_back(cy);
+         ball_r_z.push_back(cz);
+         cout << ball_r_z[k]<<endl;
+         text = "Solution2";
+         Scalar color = Scalar( 0, 0, 255);
+         putText(result, text, center,2,1,color,2);
+         circle( result, center, radius, color, 2, 8, 0 );
+          }
+  }
 
 msg.size_b = count_b;
 msg.img_x_b = ball_b_x;
@@ -295,11 +326,6 @@ msg.size_r = count_r;
 msg.img_x_r = ball_r_x;
 msg.img_y_r = ball_r_y;
 msg.img_z_r = ball_r_z;
-
-if(count_r)
-  {cout<<count_r<<endl;
-  printf("%f\t%f\t%f\n", ball_r_x[0], ball_r_y[0], ball_r_z[0]);}
-
 
     pub.publish(msg);
 
