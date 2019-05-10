@@ -13,8 +13,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <boost/thread.hpp>
-
-
 #include <ros/ros.h>
 #include <ros/package.h>
 
@@ -25,60 +23,22 @@
 #include "std_msgs/String.h"
 
 #include "opencv2/opencv.hpp"
+#include "util.hpp"
 
-
-/* TCPIP Connection */
-#define PORT 4000
-#define IPADDR "172.16.0.1" // myRIO ipadress
 #define MYRIO
 #undef MYRIO
+#define WEBCAM
 
-#define TURN_RIGHT { data[2] = 1; }
-#define TURN_LEFT { data[3] = 1; }
-#define GO_FRONT { data[0] = 1; }
-#define GO_BACK { data[1] = 1; }
-#define ROLLER_ON { data[4] = 1; }
-#define ROLLER_REVERSE { data[5] = 1; }
-#define TURN_BACK { data[6] = 1; }
-
-
-#define DEBUG 10 
-#define PERIOD 10
-
-#define RAD2DEG(x) ((x)*180./M_PI)
-#define ANGULAR_RANGE 30
-
-
-/* For timer features */
-static uint32_t timer_ticks = 0;
-uint32_t current_ticks = 0;
-
-/* State variable declaration */
-enum status {
-  /* Moving around */
-  SEARCH, APPROACH, RED_AVOIDANCE,
-  /* Turn on roller only for this state */
-  COLLECT,
-  /* Return to goal pos */
-  SEARCH_GREEN, APPROACH_GREEN, RELEASE
-};
-
-enum color {
-  NONE, BLUE, RED, GREEN
-};
-
-enum actions {
-  TURN_LEFT_, TURN_RIGHT_, GO_FRONT_, GO_BACK_
-};
+#define DISTANCE_TICKS 10
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH;
-enum color closest_ball = NONE;
+enum status recent_status = SEARCH;
 
 /* Number of balls holding */
 int ball_cnt = 0; 
 
-#ifdef NOT_REACHED
+#ifdef LIDAR 
 /* Synchronization primitives and Lidar */
 boost::mutex map_mutex;
 
@@ -91,23 +51,19 @@ int near_ball;
 int action;
 #endif
 
-/* Ball detection */
-
-/* Blue balls in sight */
+#ifdef WEBCAM
+/* Blue balls */
 int blue_cnt;
-float ball_X_b[20];
-float ball_Y_b[20];
+float blue_x[20];
+float blue_y[20];
+float blue_z[20];
 
-/* Red balls in sight */
+/* Red balls */
 int red_cnt;
-float ball_X_r[20];
-float ball_Y_r[20];
-
-/* Unused in this scheme */
-float ball_distance[20];
-
-/* Track the closest ball. */
-int target_ball;  // index of target ball
+float red_x[20];
+float red_y[20];
+float red_z[20];
+#endif
 
 int c_socket, s_socket;
 struct sockaddr_in c_addr;
@@ -115,165 +71,389 @@ int len;
 int n;
 float data[24];
 
-/* Function prototypes */
-void dataInit();
-void find_ball();
-void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan);
-void camera_Callback(const core_msgs::ball_position::ConstPtr& position);
-int target(size_t ball_cnt);
+float x_offset, y_offset, z_offset;
+float downside_angle;
 
-bool red_in_range();
-
-#define TIMEOUT 20
-#define MAXSIZE 20
-#define THRESH 0.3f
-
-const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "SEARCH_GREEN", "APPROACH_GREEN", "RELEASE" };
+bool red_phase2 = false;
 
 /* Main routine */
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "demo_simple");
+    ros::init(argc, argv, "data_integation");
     ros::NodeHandle n;
 
+    /* Argument parsing */
+    int tag;
+
+    char x_offset_[5];
+    char y_offset_[5];
+    char z_offset_[5];
+    char downside_angle_[6];
+
+    int flag = 0;
+    
+    memset(x_offset_, 0, 6);
+    memset(y_offset_, 0, 6);
+    memset(z_offset_, 0, 6);
+    memset(downside_angle_, 0, 6);
+
+    while((tag = getopt(argc, argv, "x:y:z:d:")) != -1) {
+      switch(tag) {
+        case 'x':
+          flag |= 0x8;
+          memcpy(x_offset_, optarg, strlen(optarg));
+          break;
+        case 'y':
+          flag |= 0x4;
+          memcpy(y_offset_, optarg, strlen(optarg));
+          break;
+        case 'z':
+          flag |= 0x2;
+          memcpy(z_offset_, optarg, strlen(optarg));
+          break;
+        case 'd':
+          flag |= 0x1;
+          if(strlen(optarg) > 6) {
+            printf("Invalid characters or too large angle value. Please try smaller values\n");
+            return -1;
+          }
+          memcpy(downside_angle_, optarg, strlen(optarg));
+          break;
+      }
+    }
+
+    if(!flag) {
+      printf("[Usage] \n");
+      printf("rosrun data_integrate demo_simple -x <X-offset> -y <Y-offset> -z <Z-offset> -d <camera angle>\n");
+      return -1;
+    }
+
+    if(!(flag & 0x1)) {
+      printf("Missing -d option : downside angle necessary!\n");
+      return -1;
+    }
+    
+    x_offset = atof(x_offset_);
+    y_offset = atof(y_offset_);
+    z_offset = atof(z_offset_);
+    downside_angle = RAD(atof(downside_angle_));
+
     printf("(demo-simple) start\n");
+    printf("(demo-simple) camera offset : x=%.3f, y=%.3f, z=%.3f [m]\n", x_offset, y_offset, z_offset);
+    printf("(demo-simple) downside angle : %.2f [deg] \n", RAD2DEG(downside_angle));
+
     #ifdef LIDAR
       ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, lidar_Callback);
     #endif
+
+    #ifdef WEBCAM
     ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
+    #endif
 
 		dataInit();
 
     #ifdef MYRIO
+    printf("(demo-simple) Connecting to %s:%d\n", IPADDR, PORT);
     c_socket = socket(PF_INET, SOCK_STREAM, 0);
     c_addr.sin_addr.s_addr = inet_addr(IPADDR);
     c_addr.sin_family = AF_INET;
     c_addr.sin_port = htons(PORT);
 
     if(connect(c_socket, (struct sockaddr*) &c_addr, sizeof(c_addr)) == -1){
-      printf("Failed to connect\n");
+      printf("(demo-simple) Failed to connect\n");
       close(c_socket);
       return -1;
     }
+    printf("(demo-simple) Connected to %s:%d\n", IPADDR, PORT);
     #endif
-    while(ros::ok){
-      /* This part is for TCP connection teardown */
-      if(timer_ticks>TIMEOUT*PERIOD){
-        #ifdef MYRIO
-        /* server side close() */
-        if(timer_ticks < (TIMEOUT+1)*PERIOD+1){
-          data[7] = 1;
-          write(c_socket, data, sizeof(data)) ;
-       } else { 
-          /* client side close() */
-          close(c_socket);
-          ros::shutdown();
-          return 0;
-        }
-        #endif
-        printf("(demo-simple) end\n");
-        return 0;
-      } else {
 
+    printf("(demo-simple) Entering main routine...\n");
+    printf("(demo-simple) state = SEARCH\n");
+  
+    while(ros::ok){
       dataInit();
 
+      if(recent_status != machine_status)
+        std::cout << "(demo-simple) state = " << cond[(recent_status = machine_status)] << std::endl;
+
+      /* switching between states */
       switch(machine_status) {
         case SEARCH:
-          // during search phase, simply turn right
-          TURN_RIGHT
-          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+        {
+          int target_b = centermost_blue();
+          if(target_b < 0)
+            TURN_RIGHT
+          else {
+            if(blue_x[target_b] > 0.1) TURN_RIGHT
+            else if(blue_x[target_b] < -0.1) TURN_LEFT
+          }
+
           break;
+        }
         case APPROACH:
-          // approaching phase naively goes front, until ball is in range.
+        {
           GO_FRONT
-          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
           break;
+        }
         case RED_AVOIDANCE:
-          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+        {
+          if(!red_phase2) TURN_RIGHT
+          else {
+            GO_FRONT
+            if(timer_ticks - current_ticks > DISTANCE_TICKS) {
+              red_phase2 = false;
+              machine_status = SEARCH;
+            }
+          }
           break;
+        }
         case COLLECT:
-          GO_FRONT ROLLER_ON
-          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
+        {
+          int target = closest_ball(BLUE);
+          if(target = -1)
+            machine_status = SEARCH;
+          else{
+            float xpos = blue_x[target];
+            float zpos = blue_z[target];
+
+            if(xpos > 0.07) TURN_RIGHT
+            else if(xpos < -0.07) TURN_LEFT
+            else GO_FRONT ROLLER_ON
+          }
           break;
+        }
         case SEARCH_GREEN:
-          if(DEBUG && timer_ticks%PERIOD==0) std::cout << cond[machine_status] << std::endl; 
-          break;
         case APPROACH_GREEN:
-          break;
-        case RELEASE: // This mode needs some senitel code for backup
-          break;
+        case RELEASE:
+        {
+          PANIC("NotImplementedError at SEARCH_GREEN");
+        }
+        
         default:
-          break;
-      }
+          assert(0);
+     
+      }      
 
-    #ifdef MYRIO
-    size_t written = write(c_socket, data, sizeof(data));
-    if(DEBUG)
-      printf("%d bytes written\n", (int) written);
-    #endif
 
-      }
+      /* Send control data */
+
+      #ifdef MYRIO
+      size_t written = write(c_socket, data, sizeof(data));
+      if(DEBUG)
+        printf("%d bytes written\n", (int) written);
+      #endif
+      
 	    ros::Duration(0.025).sleep();
 	    ros::spinOnce();
       timer_ticks++;
     }
+
     close(c_socket);
     ros::shutdown();
-    return 0;
+
+    return -1;
 }
 
+#ifdef WEBCAM
+/* camera_Callback : Updates position/ball_count of all colors */
 
-/* 
- * camera_Callback : Updates position/ball_count of all colors
- * TODO : define separate callbacks for each colors(BLUE, RED, GREEN)
- * (ad-hoc) For now, we safely assume that there are blue balls only.
- */
 void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 {
-    int count_b = position->size_b;
-    int count_r = position->size_r;
+  /* Step 1. Fetch data from message */
+  int b_cnt = position->size_b;
+  blue_cnt = position->size_b;
 
-    blue_cnt = count_b;
-    red_cnt = count_r;
+  for(int i=0; i<b_cnt; i++) {
+    // transform the matrix
+    float x_pos = position->img_x_b[i];
+    float y_pos = position->img_y_b[i];
+    float z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0) - pow(position->img_y_b[i],2.0));
 
-    for(int i = 0; i < count_b; i++) {
-      ball_X_b[i] = position->img_x_b[i];
-      ball_Y_b[i] = position->img_z_b[i];
-		  // ball_distance[i] = ball_X[i]*ball_X[i]+ball_Y[i]*ball_X[i];
-    }
-    for(int j = 0; j < count_r; j++) {
-      ball_X_r[j] = position->img_x_r[j];
-      ball_X_r[j] = position->img_z_r[j];
-    }
+    /* TODO : transform (Camera coordinate)->(LLF) */
+    blue_x[i] = x_pos - x_offset;
+    blue_y[i] = (y_pos * cos(downside_angle) + z_pos * sin(downside_angle)) - y_offset;
+    blue_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
+  }
 
-    switch(machine_status) {
+  int r_cnt = position->size_r;
+  red_cnt = position->size_r;
+
+  for(int i=0; i<r_cnt; i++) {
+    float x_pos = position->img_x_r[i];
+    float y_pos = position->img_y_r[i];
+    float z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(red_x[i], 2.0) - pow(red_y[i], 2.0));
+
+    /* TODO : transform (Camera coordinate)->(LLF) */
+    red_x[i] = x_pos - x_offset;
+    red_y[i] = (y_pos * cos(downside_angle) + z_pos * sin(downside_angle)) - y_offset;
+    red_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
+  }
+
+  /* Step 2. state decision and transition */
+   switch(machine_status) {
       case SEARCH:
-        if( fabs(ball_X_b[0]) < 0.5f) 
-          machine_status = COLLECT;
+      {   
+        int target = centermost_blue();
+        if(target >= 0) {
+          float xpos = blue_x[target];
+          float zpos = blue_z[target];
+
+          if(fabs(xpos) < 0.1)
+            machine_status = APPROACH;
+        }
         break;
+      }
+
       case APPROACH:
-        break;
-      case RED_AVOIDANCE:
-        break;
-      case COLLECT:
-        if( fabs(ball_X_b[0]) > 0.5f)
+      {
+        int target = centermost_blue();
+        float xpos, zpos;
+
+        if(target >= 0) {
+          xpos = blue_x[target];
+          zpos = blue_z[target];
+        }
+
+        if(red_in_range()) {
+          machine_status = RED_AVOIDANCE;
+        } else if(fabs(xpos)>=0.1 || target<0) {
           machine_status = SEARCH;
+        } else if(ball_in_range(BLUE)) {
+          machine_status = COLLECT;
+        }
         break;
+      }
+
+      case RED_AVOIDANCE:
+      {
+        if(red_in_range()) {
+          current_ticks = timer_ticks;
+          red_phase2 = false;
+        } else {
+          red_phase2 = true;
+        }
+        break;
+      }
+      case COLLECT:
+      {
+        int target = closest_ball(BLUE);
+
+        if(target = -1) {
+          machine_status = SEARCH;
+          printf("(demo-simple) Got the ball. Ball count = %d\n", ++ball_cnt);
+        } else if(blue_z[target] > 0.5) {
+          machine_status = SEARCH;
+          printf("(demo-simple) Got the ball. Ball count = %d\n", ++ball_cnt);
+        } else if(!ball_in_range(BLUE)) {
+          machine_status = SEARCH;
+        }
+
+        break;
+      }
       case SEARCH_GREEN:
-        break;
       case APPROACH_GREEN:
-        break;
       case RELEASE:
-        break;
       default:
         break;
     }
 }
 
-void find_ball()
-{
-	data[20]=1;
+bool ball_in_range(enum color ball_color) {
+
+  if(ball_color == BLUE) {
+    for(int i=0; i<blue_cnt; i++) {
+      if(fabs(blue_x[i])<0.07 && blue_z[i] <= 0.2)
+        return true;
+    }
+    return false;
+
+  } else if(ball_color == RED) {
+    return red_in_range();
+
+  } else {
+    return false;
+  }
 }
+
+bool red_in_range() {
+  for(int i=0; i<red_cnt; i++) {
+    if(fabs(red_x[i])<0.2 && red_z[i] <= 0.3)
+      return true;
+  }
+  return false;
+}
+
+/*
+ * centermost blue() 
+ * return index of centermost blue ball amongst visible ones
+ * -1 if no blue ball is in sight
+ */
+int centermost_blue() {
+  if(!blue_cnt)
+    return -1;
+
+  float xpos_abs = fabs(blue_x[0]);
+  int min_idx = 0;
+
+  for(int i=0; i<blue_cnt; i++) {
+    if(fabs(blue_x[i]) < xpos_abs) {
+      xpos_abs = fabs(blue_x[i]);
+      min_idx = i;
+    }
+  }
+  return min_idx;
+}
+
+int closest_ball(enum color ball_color) {
+  switch(ball_color) {
+    case BLUE:
+    {
+      int result_idx = -1;
+
+      if(!blue_cnt)
+        return -1;
+
+      float front_dist = blue_z[0];
+
+      for(int i=0; i<blue_cnt; i++){
+        if(blue_z[i] < front_dist){
+          front_dist = blue_z[i];
+          result_idx = i;
+        }
+      }
+
+      if(fabs(blue_x[result_idx]) < 0.05 || 1)
+        return result_idx;
+      else
+        return -1;
+    }
+    case RED:
+    {
+      int result_idx = -1;
+
+      if(!red_cnt)
+        return -1;
+
+      float front_dist = red_z[0];
+      for(int i=0; i<red_cnt; i++){
+        if(red_z[i] < front_dist){
+          front_dist = red_z[i];
+          result_idx = i;
+        }
+      }
+
+      if(fabs(red_x[result_idx] < 0.15) || 1) {
+        return result_idx;
+      } else {
+        return -1;
+      }
+      break;
+    }
+    default:
+      { return -1; }
+  }
+}
+#endif
 
 void dataInit()
 {
@@ -303,11 +483,6 @@ void dataInit()
 	data[23] = 0; //GamepadButtonDown(_dev, BUTTON_RIGHT_THUMB);
 }
 
-bool red_in_range() {
-
-  bool result = false;
-  return result;
-}
 
 #ifdef NOT_REACHED
 
