@@ -128,7 +128,7 @@ int main(int argc, char **argv)
       return -1;
     }
 
-    if(!(flag & 0x1)) {
+    if(!(flag & 0x1) && 0) {
       printf("Missing -d option : downside angle necessary!\n");
       return -1;
     }
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     #endif
 
     #ifdef WEBCAM
-    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
+    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position_top", 1000, camera_Callback);
     #endif
 
 		dataInit();
@@ -211,7 +211,7 @@ int main(int argc, char **argv)
         {
           int target = closest_ball(BLUE);
           if(target = -1)
-            machine_status = SEARCH;
+            machine_status;
           else{
             float xpos = blue_x[target];
             float zpos = blue_z[target];
@@ -268,11 +268,13 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     float x_pos = position->img_x_b[i];
     float y_pos = position->img_y_b[i];
     float z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0) - pow(position->img_y_b[i],2.0));
+    z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     blue_x[i] = x_pos - x_offset;
-    blue_y[i] = (y_pos * cos(downside_angle) + z_pos * sin(downside_angle)) - y_offset;
-    blue_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
+//    blue_y[i] = (y_pos * cos(downside_angle) + z_pos * sin(downside_angle)) - y_offset;
+//    blue_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
+    blue_z[i] = z_pos - z_offset;
   }
 
   int r_cnt = position->size_r;
@@ -282,11 +284,13 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     float x_pos = position->img_x_r[i];
     float y_pos = position->img_y_r[i];
     float z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(red_x[i], 2.0) - pow(red_y[i], 2.0));
+    z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(position->img_x_r[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     red_x[i] = x_pos - x_offset;
     red_y[i] = (y_pos * cos(downside_angle) + z_pos * sin(downside_angle)) - y_offset;
     red_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
+    red_z[i] = z_pos - z_offset;
   }
 
   /* Step 2. state decision and transition */
@@ -337,15 +341,16 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
       case COLLECT:
       {
         int target = closest_ball(BLUE);
+        printf("target = %d\n", target);
 
-        if(target = -1) {
+        if(target = -1 && 0) {
           machine_status = SEARCH;
           printf("(demo-simple) Got the ball. Ball count = %d\n", ++ball_cnt);
         } else if(blue_z[target] > 0.5) {
-          machine_status = SEARCH;
-          printf("(demo-simple) Got the ball. Ball count = %d\n", ++ball_cnt);
+          //machine_status = SEARCH;
+          //printf("(demo-simple) Got the ball. Ball count = %d\n", ++ball_cnt);
         } else if(!ball_in_range(BLUE)) {
-          machine_status = SEARCH;
+          //machine_status=SEARCH;
         }
 
         break;
@@ -362,7 +367,8 @@ bool ball_in_range(enum color ball_color) {
 
   if(ball_color == BLUE) {
     for(int i=0; i<blue_cnt; i++) {
-      if(fabs(blue_x[i])<0.07 && blue_z[i] <= 0.2)
+      //printf("blue[%d] = (%.2f, %.2f)\n", i, blue_x[i], blue_z[i]);
+      if(fabs(blue_x[i])<=0.1 && blue_z[i] <= 0.5)
         return true;
     }
     return false;

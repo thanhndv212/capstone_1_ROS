@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "ball_detect_node"); //init ros nodd
     ros::NodeHandle nh; //create node handler
-    pub = nh.advertise<core_msgs::ball_position_top>("/position", 100); //setting publisher
+    pub = nh.advertise<core_msgs::ball_position_top>("/position_top", 100); //setting publisher
 
     /////////////////////////////////////////////////////////////////////////
 
@@ -285,7 +285,7 @@ msg.img_z_r = ball_r_z;
 
 if(count_b)
   { float i =center_b[0].y;
-    cout<<i<<"\t"<<ball_b_z[0]<<endl;
+    cout<<ball_b_x[0]<<"\t"<<ball_b_z[0]<<endl;
 
 }
 
@@ -339,7 +339,7 @@ vector<float> pixel2point(Point center, int radius){vector<float> position;
     Xc = roundf(Xc * 1000) / 1000;
     Yc = roundf(Yc * 1000) / 1000;
     Zc = roundf(Zc * 1000) / 1000;
-    Zc = sqrt(pow(Xc,2)+pow(Yc,2)+pow(Zc,2)-pow(0.28,2));
+    Zc = sqrt(pow(Xc,2)+pow(Yc,2)+pow(Zc,2)-pow(0.25,2));  // 0x1
     position.push_back(Xc);
     position.push_back(Yc);
     position.push_back(Zc);
