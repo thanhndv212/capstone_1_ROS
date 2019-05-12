@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 2.8.3)
 project(ball_track)
 add_compile_options(-std=c++11)
@@ -37,9 +36,10 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   #include
 )
-add_executable(ball_track_node src/main_book_centerdistance_HSV.cpp)
+add_executable(ball_track_node src/main_top.cpp)
+add_executable(ball_track_top_node src/main.cpp)
 add_dependencies(ball_track_node core_msgs_generate_messages_cpp)
-
+add_dependencies(ball_track_top_node core_msgs_generate_messages_cpp)
 target_link_libraries(ball_track_node
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
