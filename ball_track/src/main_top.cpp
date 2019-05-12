@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     vector<vector<Point> > contours_b;
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
-    VideoCapture cap(1);
+    VideoCapture cap(2);
     namedWindow("Video Capture", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Red", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);

@@ -25,20 +25,19 @@
 #include "opencv2/opencv.hpp"
 #include "util.hpp"
 
-#define MYRIO
-#undef MYRIO
-#define WEBCAM
 
-#define DISTANCE_TICKS 10
+#define WEBCAM
+#define MYRIO
+#define DISTANCE_TICKS 150
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH;
 enum status recent_status = SEARCH;
 
 /* Number of balls holding */
-int ball_cnt = 0; 
+int ball_cnt = 0;
 
-#ifdef LIDAR 
+#ifdef LIDAR
 /* Synchronization primitives and Lidar */
 boost::mutex map_mutex;
 
@@ -91,7 +90,7 @@ int main(int argc, char **argv)
     char downside_angle_[6];
 
     int flag = 0;
-    
+
     memset(x_offset_, 0, 6);
     memset(y_offset_, 0, 6);
     memset(z_offset_, 0, 6);
@@ -132,7 +131,7 @@ int main(int argc, char **argv)
       printf("Missing -d option : downside angle necessary!\n");
       return -1;
     }
-    
+
     x_offset = atof(x_offset_);
     y_offset = atof(y_offset_);
     z_offset = atof(z_offset_);
@@ -169,7 +168,7 @@ int main(int argc, char **argv)
 
     printf("(demo-simple) Entering main routine...\n");
     printf("(demo-simple) state = SEARCH\n");
-  
+
     while(ros::ok){
       dataInit();
 
@@ -203,23 +202,27 @@ int main(int argc, char **argv)
             if(timer_ticks - current_ticks > DISTANCE_TICKS) {
               red_phase2 = false;
               machine_status = SEARCH;
-            }
           }
+        }
           break;
         }
         case COLLECT:
         {
+          ROLLER_ON
+
           int target = closest_ball(BLUE);
-          if(target = -1)
-            machine_status;
+          if(!blue_cnt && target == -1){
+            machine_status = APPROACH;
+            printf("(demo-simple) collected ball. ball_count = %d\n", ++ball_cnt);
+          }
           else{
             float xpos = blue_x[target];
             float zpos = blue_z[target];
 
-            if(xpos > 0.07) TURN_RIGHT
-            else if(xpos < -0.07) TURN_LEFT
-            else GO_FRONT ROLLER_ON
-          }
+            if(xpos > 0.07) {TURN_RIGHT ROLLER_ON}
+            else if(xpos < -0.07) {TURN_LEFT ROLLER_ON}
+            else { GO_FRONT ROLLER_ON }
+            }
           break;
         }
         case SEARCH_GREEN:
@@ -228,11 +231,11 @@ int main(int argc, char **argv)
         {
           PANIC("NotImplementedError at SEARCH_GREEN");
         }
-        
+
         default:
           assert(0);
-     
-      }      
+
+      }
 
 
       /* Send control data */
@@ -242,7 +245,7 @@ int main(int argc, char **argv)
       if(DEBUG)
         printf("%d bytes written\n", (int) written);
       #endif
-      
+
 	    ros::Duration(0.025).sleep();
 	    ros::spinOnce();
       timer_ticks++;
@@ -296,7 +299,7 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
   /* Step 2. state decision and transition */
    switch(machine_status) {
       case SEARCH:
-      {   
+      {
         int target = centermost_blue();
         if(target >= 0) {
           float xpos = blue_x[target];
@@ -341,7 +344,7 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
       case COLLECT:
       {
         int target = closest_ball(BLUE);
-        printf("target = %d\n", target);
+        //printf("target = %d\n", target);
 
         if(target = -1 && 0) {
           machine_status = SEARCH;
@@ -383,14 +386,14 @@ bool ball_in_range(enum color ball_color) {
 
 bool red_in_range() {
   for(int i=0; i<red_cnt; i++) {
-    if(fabs(red_x[i])<0.2 && red_z[i] <= 0.3)
+    if(fabs(red_x[i])<0.2 && red_z[i] <= 0.5)
       return true;
   }
   return false;
 }
 
 /*
- * centermost blue() 
+ * centermost blue()
  * return index of centermost blue ball amongst visible ones
  * -1 if no blue ball is in sight
  */
@@ -430,8 +433,9 @@ int closest_ball(enum color ball_color) {
 
       if(fabs(blue_x[result_idx]) < 0.05 || 1)
         return result_idx;
-      else
+      else{
         return -1;
+      }
     }
     case RED:
     {
@@ -494,9 +498,9 @@ void dataInit()
 
 // LIDAR is UNUSED for this project
 void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan)
-  { 
+  {
   		map_mutex.lock();
-  
+
      int count = scan->scan_time / scan->time_increment;
      lidar_size=count;
      for(int i = 0; i < count; i++)
@@ -505,7 +509,7 @@ void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan)
          lidar_distance[i]=scan->ranges[i];
      }
   		map_mutex.unlock();
-  }  
+  }
 
 
   /* Checks for data subscription */
