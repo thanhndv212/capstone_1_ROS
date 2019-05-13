@@ -21,6 +21,10 @@ int high_h_r=15, high_s_r=255, high_v_r=255;
 
 int low_h_b=90, low_s_b=160, low_v_b=70;
 int high_h_b=113, high_s_b=255, high_v_b=255;
+
+int low_h_g=50, low_s_g=60, low_v_g=90;
+int high_h_g=80, high_s_g=255, high_v_g=255;
+
 void on_low_h_thresh_trackbar_red(int, void *);
 void on_high_h_thresh_trackbar_red(int, void *);
 void on_low_h2_thresh_trackbar_red(int, void *);
@@ -35,6 +39,12 @@ void on_low_s_thresh_trackbar_blue(int, void *);
 void on_high_s_thresh_trackbar_blue(int, void *);
 void on_low_v_thresh_trackbar_blue(int, void *);
 void on_high_v_thresh_trackbar_blue(int, void *);
+void on_low_h_thresh_trackbar_green(int, void *);
+void on_high_h_thresh_trackbar_green(int, void *);
+void on_low_s_thresh_trackbar_green(int, void *);
+void on_high_s_thresh_trackbar_green(int, void *);
+void on_low_v_thresh_trackbar_green(int, void *);
+void on_high_v_thresh_trackbar_green(int, void *);
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
 string intToString(int n);
 string floatToString(float f);
@@ -55,6 +65,10 @@ void on_canny_edge_trackbar_blue(int, void *);
 int lowThreshold_b = 100;
 int ratio_b = 3;
 int kernel_size_b = 3;
+void on_canny_edge_trackbar_green(int, void *);
+int lowThreshold_g = 100;
+int ratio_g = 3;
+int kernel_size_g = 3;
 
 // Initialization of variable for dimension of the target: We set a float value for the radius of the desired targets, in this case the balls.
 float fball_radius = 0.074 ; // meter: The unit which is used in the initialization.
@@ -95,31 +109,39 @@ int main(int argc, char **argv)
 
 
     //////////////////////////////////////////////////////////////////
-    Mat frame, bgr_frame, hsv_frame, hsv_frame_red, hsv_frame_red1, hsv_frame_red2, hsv_frame_blue, hsv_frame_red_blur, hsv_frame_blue_blur, hsv_frame_red_canny, hsv_frame_blue_canny, result;
+    Mat frame, bgr_frame, hsv_frame, hsv_frame_red, hsv_frame_red1, hsv_frame_red2, hsv_frame_blue,hsv_frame_green, hsv_frame_red_blur, hsv_frame_blue_blur, hsv_frame_green_blur, hsv_frame_red_canny, hsv_frame_blue_canny,hsv_frame_green_canny, result;
     Mat calibrated_frame;
     Mat intrinsic = Mat(3,3, CV_32FC1);
     Mat distCoeffs;
     intrinsic = Mat(3, 3, CV_32F, intrinsic_data);
     distCoeffs = Mat(1, 5, CV_32F, distortion_data);
 
+
     vector<Vec4i> hierarchy_r;
     vector<Vec4i> hierarchy_b;
+    vector<Vec4i> hierarchy_g;
+
     vector<vector<Point> > contours_r;
     vector<vector<Point> > contours_b;
+    vector<vector<Point> > contours_g;
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
     VideoCapture cap(1);
     namedWindow("Video Capture", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Red", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
+    namedWindow("Object Detection_HSV_Green", WINDOW_NORMAL);
     namedWindow("Canny Edge for Red Ball", WINDOW_NORMAL);
     namedWindow("Canny Edge for Blue Ball", WINDOW_NORMAL);
+    namedWindow("Canny Edge for Green Ball", WINDOW_NORMAL);
     namedWindow("Result", WINDOW_NORMAL);
 
     moveWindow("Video Capture",              50, 0);
     moveWindow("Object Detection_HSV_Red",  50,370);
+    moveWindow("Object Detection_HSV_Green",  890,370);
     moveWindow("Object Detection_HSV_Blue",470,370);
     moveWindow("Canny Edge for Red Ball",   50,730);
+    moveWindow("Canny Edge for Green Ball",   890,730);
     moveWindow("Canny Edge for Blue Ball", 470,730);
     moveWindow("Result", 470, 0);
 
@@ -143,9 +165,20 @@ int main(int argc, char **argv)
     createTrackbar("Low V","Object Detection_HSV_Blue", &low_v_b, 255, on_low_v_thresh_trackbar_blue);
     createTrackbar("High V","Object Detection_HSV_Blue", &high_v_b, 255, on_high_v_thresh_trackbar_blue);
 
+
+
+    createTrackbar("Low H","Object Detection_HSV_Green", &low_h_g, 180, on_low_h_thresh_trackbar_green);
+    createTrackbar("High H","Object Detection_HSV_Green", &high_h_g, 180, on_high_h_thresh_trackbar_green);
+    createTrackbar("Low S","Object Detection_HSV_Green", &low_s_g, 255, on_low_s_thresh_trackbar_green);
+    createTrackbar("High S","Object Detection_HSV_Green", &high_s_g, 255, on_high_s_thresh_trackbar_green);
+    createTrackbar("Low V","Object Detection_HSV_Green", &low_v_g, 255, on_low_v_thresh_trackbar_green);
+    createTrackbar("High V","Object Detection_HSV_Green", &high_v_g, 255, on_high_v_thresh_trackbar_green);
+
+
     // Trackbar to set parameter for Canny Edge: In this part, we set the threshold for the Canny edge trackbar.
     createTrackbar("Min Threshold:","Canny Edge for Red Ball", &lowThreshold_r, 100, on_canny_edge_trackbar_red);
     createTrackbar("Min Threshold:","Canny Edge for Blue Ball", &lowThreshold_b, 100, on_canny_edge_trackbar_blue);
+    createTrackbar("Min Threshold:","Canny Edge for Green Ball", &lowThreshold_g, 100, on_canny_edge_trackbar_green);
 
 
     while((char)waitKey(1)!='q'){
@@ -169,29 +202,39 @@ int main(int argc, char **argv)
 
     inRange(hsv_frame,Scalar(low_h_b,low_s_b,low_v_b),Scalar(high_h_b,high_s_b,high_v_b),hsv_frame_blue);
 
+    inRange(hsv_frame,Scalar(low_h_g,low_s_g,low_v_g),Scalar(high_h_g,high_s_g,high_v_g),hsv_frame_green);
+
     addWeighted(hsv_frame_red1, 1.0, hsv_frame_red2, 1.0, 0.0, hsv_frame_red);
 
     morphOps(hsv_frame_red);
     morphOps(hsv_frame_blue);
+    morphOps(hsv_frame_green);
 
     // Gaussian blur function.
     GaussianBlur(hsv_frame_red, hsv_frame_red_blur, cv::Size(9, 9), 2, 2);
     GaussianBlur(hsv_frame_blue, hsv_frame_blue_blur, cv::Size(9, 9), 2, 2);
-
+    GaussianBlur(hsv_frame_green, hsv_frame_green_blur, cv::Size(9, 9), 2, 2);
     //Canny edge function.
     Canny(hsv_frame_red_blur, hsv_frame_red_canny, lowThreshold_r, lowThreshold_r*ratio_r, kernel_size_r);
     Canny(hsv_frame_blue_blur, hsv_frame_blue_canny, lowThreshold_b, lowThreshold_b*ratio_b, kernel_size_b);
+    Canny(hsv_frame_green_blur, hsv_frame_green_canny, lowThreshold_g, lowThreshold_g*ratio_g, kernel_size_g);
 
     //Find contour function.
     findContours(hsv_frame_red_canny, contours_r, hierarchy_r, RETR_CCOMP, CHAIN_APPROX_SIMPLE, Point(0, 0));
     findContours(hsv_frame_blue_canny, contours_b, hierarchy_b, RETR_CCOMP, CHAIN_APPROX_SIMPLE, Point(0, 0));
-
+    findContours(hsv_frame_green_canny, contours_g, hierarchy_g, RETR_CCOMP, CHAIN_APPROX_SIMPLE, Point(0, 0));
     vector<vector<Point> > contours_r_poly( contours_r.size() );
     vector<vector<Point> > contours_b_poly( contours_b.size() );
+    vector<vector<Point> > contours_g_poly( contours_g.size() );
+
     vector<Point2f>center_r( contours_r.size() );
     vector<Point2f>center_b( contours_b.size() );
+    vector<Point2f>center_g( contours_g.size() );
+
     vector<float>radius_r( contours_r.size() );
     vector<float>radius_b( contours_b.size() );
+    vector<float>radius_g( contours_g.size() );
+
 
         for( size_t i = 0; i < contours_b.size(); i++ ){
             approxPolyDP( contours_b[i], contours_b_poly[i], 3, true );
@@ -201,11 +244,15 @@ int main(int argc, char **argv)
             approxPolyDP( contours_r[i], contours_r_poly[i], 3, true );
             minEnclosingCircle( contours_r_poly[i], center_r[i], radius_r[i] );
         }
+    for( size_t i = 0; i < contours_g.size(); i++ ){approxPolyDP( contours_g[i], contours_g_poly[i], 3, true );
+        minEnclosingCircle( contours_g_poly[i], center_g[i], radius_g[i] );}
+
 int count_r =0;
 int count_b =0;
+int count_g=0;
 vector<float> ball_r_x, ball_r_y, ball_r_z, ball_r_radius;
 vector<float> ball_b_x, ball_b_y, ball_b_z, ball_b_radius;
-
+vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
  int houghcircle =0;
     for( size_t i = 0; i< contours_b.size(); i++ ){
       if(radius_b[i] > iMin_tracking_ball_size){
@@ -317,18 +364,36 @@ if (houghcircle){
          circle( result, center, radius, color, 2, 8, 0 );
           }
   }
-// else {
-//   for( size_t i = 0; i< contours_b.size(); i++ ){
-//           Scalar color = Scalar( 255, 0, 0);
-//           drawContours( hsv_frame_blue_canny, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
-//           string sx = floatToString(ball_b_x[0]);
-//           text = "Blue ball:" + sx ;
-//           putText(result, text, center_b[i],2,1,Scalar(0,255,0),2);
-//           circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
-//
-// }
-// }
+    for( size_t i = 0; i< contours_g.size(); i++ ){
+      if (radius_g[i] > iMin_tracking_ball_size){Scalar color = Scalar( 0, 0, 255);
+            drawContours( hsv_frame_green_canny, contours_g_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
 
+            vector<float> ball_position_g;
+            ball_position_g = pixel2point(center_g[i], radius_g[i]);
+            float isx = ball_position_g[0];
+            float isy = ball_position_g[1];
+            float isz = ball_position_g[2];
+            float radi = ball_position_g[3];
+            string sx = floatToString(isx);
+            string sy = floatToString(isy);
+            string sz = floatToString(isz);
+            ball_g_x.push_back(isx);
+            ball_g_y.push_back(isy);
+            ball_g_z.push_back(isz);
+            ball_g_radius.push_back(radi);
+               count_g++;
+               float x1, y1, x2, y2;
+               x1, x2 =center_g[i].x,center_g[i+1].x;
+               y1, y2 =center_g[i].y,center_g[i].y;
+               float diff = pow((x1-x2),2)+pow((y1-y2),2);
+               float l = radius_g[i]-radius_g[i+1];
+            text = "Green ball:" + sx + "," + sy + "," + sz;
+            putText(result, text, center_g[i],2,1,Scalar(0,255,0),2);
+            circle( result, center_g[i], (int)radius_g[i], color, 2, 8, 0 );
+            if (abs(l)<diff)i++;
+
+        }
+    }
 
 msg.size_b = count_b;
 msg.img_x_b = ball_b_x;
@@ -338,6 +403,10 @@ msg.size_r = count_r;
 msg.img_x_r = ball_r_x;
 msg.img_y_r = ball_r_y;
 msg.img_z_r = ball_r_z;
+msg.size_g = count_g;
+msg.img_x_g = ball_g_x;
+msg.img_y_g = ball_g_y;
+msg.img_z_g = ball_g_z;
 
     pub.publish(msg);
 
@@ -345,9 +414,12 @@ msg.img_z_r = ball_r_z;
     imshow("Video Capture",calibrated_frame);
     imshow("Object Detection_HSV_Red",hsv_frame_red);
     imshow("Object Detection_HSV_Blue",hsv_frame_blue);
+    imshow("Object Detection_HSV_Green",hsv_frame_green);
+    imshow("Canny Edge for Green Ball", hsv_frame_green_canny);
     imshow("Canny Edge for Red Ball", hsv_frame_red_canny);
     imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
     imshow("Result", result);
+
 
 
     }
@@ -441,9 +513,31 @@ void on_low_v_thresh_trackbar_blue(int, void *){low_v_b= min(high_v_b-1, low_v_b
 void on_high_v_thresh_trackbar_blue(int, void *){high_v_b = max(high_v_b, low_v_b+1);
     setTrackbarPos("High V", "Object Detection_HSV_Blue", high_v_b);
 }
+// Trackbar for image threshodling in HSV colorspace : Blue : The functions had been declared and created, and now they are positioned in the relevant result frames. In this case, in the blue ball's frames.
+void on_low_h_thresh_trackbar_green(int, void *){low_h_g = min(high_h_g-1, low_h_g);
+    setTrackbarPos("Low H","Object Detection_HSV_Green", low_h_g);
+}
+void on_high_h_thresh_trackbar_green(int, void *){high_h_g = max(high_h_g, low_h_g+1);
+    setTrackbarPos("High H", "Object Detection_HSV_Green", high_h_g);
+}
+void on_low_s_thresh_trackbar_green(int, void *){low_s_g = min(high_s_g-1, low_s_g);
+    setTrackbarPos("Low S","Object Detection_HSV_Green", low_s_g);
+}
+void on_high_s_thresh_trackbar_green(int, void *){high_s_g = max(high_s_g, low_s_g+1);
+    setTrackbarPos("High S", "Object Detection_HSV_Green", high_s_g);
+}
+void on_low_v_thresh_trackbar_green(int, void *){low_v_g= min(high_v_g-1, low_v_g);
+    setTrackbarPos("Low V","Object Detection_HSV_Green", low_v_g);
+}
+void on_high_v_thresh_trackbar_green(int, void *){high_v_g = max(high_v_g, low_v_g+1);
+    setTrackbarPos("High V", "Object Detection_HSV_Green", high_v_g);
+}
+
 
 // Trackbar for Canny edge algorithm : The trackbars for the Canny edge window are positioned here, for both the red and blue balls.
 void on_canny_edge_trackbar_red(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Red Ball", lowThreshold_r);
 }
 void on_canny_edge_trackbar_blue(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Blue Ball", lowThreshold_b);
+}
+void on_canny_edge_trackbar_green(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Green Ball", lowThreshold_g);
 }
