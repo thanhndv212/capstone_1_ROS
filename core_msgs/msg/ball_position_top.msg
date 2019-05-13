@@ -7,3 +7,7 @@ int32 size_b
 float32[] img_x_b
 float32[] img_y_b
 float32[] img_z_b
+int32 size_g
+float32[] img_x_g
+float32[] img_y_g
+float32[] img_z_g
