@@ -22,7 +22,7 @@ int high_h_r=15, high_s_r=255, high_v_r=255;
 int low_h_b=90, low_s_b=170, low_v_b=90;
 int high_h_b=113, high_s_b=255, high_v_b=255;
 
-int low_h_g=50, low_s_g=60, low_v_g=90;
+int low_h_g=45, low_s_g=60, low_v_g=90;
 int high_h_g=80, high_s_g=255, high_v_g=255;
 void on_low_h_thresh_trackbar_red(int, void *);
 void on_high_h_thresh_trackbar_red(int, void *);
