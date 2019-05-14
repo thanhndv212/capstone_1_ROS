@@ -9,7 +9,7 @@
 #include "core_msgs/ball_position_top.h"
 #include <cv_bridge/cv_bridge.h>
 
-
+#define DEBUG 0
 
 using namespace std;
 using namespace cv;
@@ -96,9 +96,11 @@ void sigint_handler(int sig){
 // Here, we start our main function.
 int main(int argc, char **argv)
 {
+    int idx = (argc == 1)? (0) : (2);
+
     signal(SIGINT, sigint_handler);
 
-    ros::init(argc, argv, "ball_detect_node"); //init ros nodd
+    ros::init(argc, argv, "ball_track_top_node"); //init ros nodd
     ros::NodeHandle nh; //create node handler
     pub = nh.advertise<core_msgs::ball_position_top>("/position_top", 100); //setting publisher
 
@@ -124,7 +126,7 @@ int main(int argc, char **argv)
     vector<vector<Point> > contours_g;
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
-    VideoCapture cap(1);
+    VideoCapture cap(idx);
     namedWindow("Video Capture", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Red", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
@@ -345,7 +347,7 @@ vector<float> ball_b_z, ball_g_radius,ball_b_radius , ball_r_radius;
 
         }
     }
-cout<<count_b<< count_r<<endl;
+if(DEBUG) cout<<count_b<< count_r<<endl;
 msg.size_b = count_b;
 msg.img_x_b = ball_b_x;
 msg.img_y_b = ball_b_y;
@@ -359,12 +361,12 @@ msg.img_x_g = ball_g_x;
 msg.img_y_g = ball_g_y;
 msg.img_z_g = ball_g_z;
 
-if(count_b)
+if(count_b && DEBUG)
   { float i =center_b[0].y;
-    cout<<ball_b_z[0]<<"\t"<<ball_b_z[0]<<endl;
+    // cout<<ball_b_z[0]<<"\t"<<ball_b_z[0]<<endl;
 }
-if (count_r)  cout<<ball_r_z[0]<<"\t"<<ball_r_z[0]<<endl;
-if (count_g)  cout<<ball_g_z[0]<<"\t"<<ball_g_z[0]<<endl;
+if (count_r && DEBUG)  cout<<ball_r_z[0]<<"\t"<<ball_r_z[0]<<endl;
+if (count_g && DEBUG)  cout<<ball_g_z[0]<<"\t"<<ball_g_z[0]<<endl;
 
     pub.publish(msg);
 

@@ -28,11 +28,11 @@
 
 #define WEBCAM
 #define MYRIO
-#define DISTANCE_TICKS 40
-#undef MYRIO
+#define DISTANCE_TICKS 50
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
+#define DISTANCE_TICKS_CL 70
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH;
@@ -68,6 +68,16 @@ int red_cnt;
 float red_x[20];
 float red_y[20];
 float red_z[20];
+
+int blue_cnt_top;
+int red_cnt_top;
+float blue_x_top[20];
+float blue_y_top[20];
+float blue_z_top[20];
+float red_x_top[20];
+float red_y_top[20];
+float red_z_top[20];
+
 #endif
 
 int c_socket, s_socket;
@@ -76,7 +86,7 @@ int len;
 int n;
 float data[24];
 
-float x_offset, y_offset, z_offset;
+float x_offset, y_offset, z_offset, x_offset_top, z_offset_top;
 float downside_angle;
 
 bool red_phase2 = false;
@@ -95,6 +105,8 @@ int main(int argc, char **argv)
     char x_offset_[5];
     char y_offset_[5];
     char z_offset_[5];
+    char x_offset_top_[5];
+    char z_offset_top_[5];
     char downside_angle_[6];
 
     int flag = 0;
@@ -104,7 +116,7 @@ int main(int argc, char **argv)
     memset(z_offset_, 0, 6);
     memset(downside_angle_, 0, 6);
 
-    while((tag = getopt(argc, argv, "x:y:z:d:")) != -1) {
+    while((tag = getopt(argc, argv, "x:y:z:d:X:Z:")) != -1) {
       switch(tag) {
         case 'x':
           flag |= 0x8;
@@ -126,6 +138,14 @@ int main(int argc, char **argv)
           }
           memcpy(downside_angle_, optarg, strlen(optarg));
           break;
+        case 'X':
+          flag |= 0x10;
+          memcpy(x_offset_top_, optarg, strlen(optarg));
+          break;
+        case 'Z':
+          flag |= 0x20;
+          memcpy(z_offset_top_, optarg, strlen(optarg));
+          break;
       }
     }
 
@@ -143,6 +163,10 @@ int main(int argc, char **argv)
     x_offset = atof(x_offset_);
     y_offset = atof(y_offset_);
     z_offset = atof(z_offset_);
+
+    x_offset_top = atof(x_offset_top_);
+    z_offset_top = atof(z_offset_top_);
+
     downside_angle = RAD(atof(downside_angle_));
 
     printf("(demo-simple) start\n");
@@ -154,7 +178,8 @@ int main(int argc, char **argv)
     #endif
 
     #ifdef WEBCAM
-    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position_top", 1000, camera_Callback);
+    ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
+    ros::Subscriber sub2 = n.subscribe<core_msgs::ball_position>("/position_top", 1000, camera_Callback_top);
     #endif
 
 		dataInit();
@@ -188,11 +213,17 @@ int main(int argc, char **argv)
         case SEARCH:
         {
           int target_b = leftmost_blue();
-  
-          if(target_b < 0)
-            TURN_RIGHT
-          else {
+          int target_b_top = leftmost_blue_top();
+
+          if(target_b < 0) {
+            if(target_b_top >= 0) {
+              GO_FRONT
+            } else {
+              TURN_RIGHT 
+            }
+          } else {
             if(blue_x[target_b] > 0.05) {
+              printf("search-R");
               TURN_RIGHT // // ROS_INFO("search - R");
             } else if(blue_x[target_b] < -0.05) {
               TURN_LEFT // ROS_INFO("search - L");
@@ -207,9 +238,9 @@ int main(int argc, char **argv)
         {
           GO_FRONT
           int target_b = leftmost_blue();
-          if(fabs(blue_x[target_b]) >= 0.07) { machine_status = SEARCH; }
+          if(fabs(blue_x[target_b]) >= 0.10) { machine_status = SEARCH; }
           else {
-            if(blue_z[target_b] < 0.3) {
+            if(blue_z[target_b] < 0.2) {
               machine_status = COLLECT;
             }
           }
@@ -228,7 +259,11 @@ int main(int argc, char **argv)
         }
         case RED_AVOIDANCE:
         {          
-          if(!red_in_range() && !red_phase2) red_phase2 = true;
+          if(!red_in_range() && !red_phase2){
+            red_phase2 = true;
+            printf("(demo-simple) RED_AVOIDANCE2\n");
+            current_ticks = timer_ticks;
+          }
   
           if(!red_phase2) TURN_RIGHT
           else {
@@ -249,22 +284,20 @@ int main(int argc, char **argv)
           target = leftmost_blue();
 
           if(target == -1){
-            machine_status = SEARCH;
+            machine_status = COLLECT2;
             printf("recent target blue was at (%.3f, %.3f)\n", recent_target_b_x, recent_target_b_z);
-
-            if(fabs(recent_target_b_x)<0.033)
-              printf("(demo-simple) collected ball. ball_count = %d\n", ++ball_cnt);
           }
           else {
             float xpos = blue_x[target];
             float zpos = blue_z[target];
 
-            if(xpos > 0.033) {
-              TURN_RIGHT ROLLER_ON
-            } else if(xpos < -0.033) {
-              TURN_LEFT ROLLER_ON
+            if(xpos > 0.015) {
+              TURN_RIGHT ROLLER_ON printf("col-R\n");
+            } else if(xpos < -0.015) {
+              TURN_LEFT ROLLER_ON printf("col-L\n");
             } else {
-               GO_FRONT ROLLER_ON
+              current_ticks = timer_ticks;
+              machine_status = COLLECT2;
             }
           }
 
@@ -274,6 +307,17 @@ int main(int argc, char **argv)
           if(target >= 0){
             recent_target_b_x = blue_x[target];
             recent_target_b_z = blue_z[target];
+          }
+          break;
+        }
+        case COLLECT2:
+        {
+          GO_FRONT ROLLER_ON
+          if(timer_ticks - current_ticks > DISTANCE_TICKS_CL) {
+            machine_status = SEARCH;
+
+            if(fabs(recent_target_b_x)<0.133)
+              printf("(demo-simple) collected ball. ball_count = %d\n", ++ball_cnt);
           }
           break;
         }
@@ -311,7 +355,6 @@ int main(int argc, char **argv)
 
 #ifdef WEBCAM
 /* camera_Callback : Updates position/ball_count of all colors */
-
 void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 {
   /* Step 1. Fetch data from message */
@@ -327,8 +370,6 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     blue_x[i] = x_pos - x_offset;
-//    blue_y[i] = (y_pos * cos(downside_angle) + z_pos * sin(downside_angle)) - y_offset;
-//    blue_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
     blue_z[i] = z_pos - z_offset;
   }
 
@@ -348,6 +389,40 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     red_z[i] = z_pos - z_offset;
   }
 }
+
+/* callback 2 */
+void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position)
+{
+  /* Step 1. Fetch data from message */
+  int b_cnt_top = position->size_b;
+  blue_cnt_top = position->size_b;
+
+  for(int i=0; i<b_cnt_top; i++) {
+    // transform the matrix
+    float x_pos = position->img_x_b[i];
+    float y_pos = position->img_y_b[i];
+    float z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0));
+
+    /* TODO : transform (Camera coordinate)->(LLF) */
+    blue_x_top[i] = x_pos - x_offset_top;
+    blue_z_top[i] = z_pos - z_offset_top;
+  }
+
+  int r_cnt_top = position->size_r;
+  red_cnt_top = position->size_r;
+
+  for(int i=0; i<r_cnt_top; i++) {
+    float x_pos = position->img_x_r[i];
+    float y_pos = position->img_y_r[i];
+    float z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(position->img_x_r[i],2.0));
+
+    /* TODO : transform (Camera coordinate)->(LLF) */
+    red_x_top[i] = x_pos - x_offset;
+    red_z_top[i] = z_pos - z_offset;
+  }
+}
+/* callback 2 end*/
+
 
 bool ball_in_range(enum color ball_color) {
 
@@ -369,7 +444,7 @@ bool ball_in_range(enum color ball_color) {
 
 bool red_in_range() {
   for(int i=0; i<red_cnt; i++) {
-    if(fabs(red_x[i])<0.11 && red_z[i] <= 0.3)
+    if(fabs(red_x[i])<0.2 && red_z[i] <= 0.3)
       return true;
   }
   return false;
@@ -388,12 +463,27 @@ int leftmost_blue() {
   int min_idx = 0;
 
   for(int i=0; i<blue_cnt; i++) {
-    if(blue_x[i] < xpos) {
+    if(blue_x[i] <= xpos) {
       xpos = blue_x[i];
       min_idx = i;
     }
   }
+  return min_idx;
+}
 
+int leftmost_blue_top() {
+  if(!blue_cnt_top)
+    return -1;
+
+  float xpos = blue_x_top[0];
+  int min_idx = 0;
+
+  for(int i=0; i<blue_cnt_top; i++) {
+    if(blue_x_top[i] <= xpos) {
+      xpos = blue_x_top[i];
+      min_idx = i;
+    }
+  }
   return min_idx;
 }
 

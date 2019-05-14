@@ -31,7 +31,7 @@ enum status {
   /* Moving around */
   SEARCH, APPROACH, RED_AVOIDANCE,
   /* Turn on roller only for this state */
-  COLLECT,
+  COLLECT, COLLECT2,
   /* Return to goal pos */
   SEARCH_GREEN, APPROACH_GREEN, RELEASE
 };
@@ -49,14 +49,18 @@ void dataInit();
 void find_ball();
 void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan);
 void camera_Callback(const core_msgs::ball_position::ConstPtr& position);
+void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position);
 
 bool red_in_range();
 bool ball_in_range(enum color ball_color);
 int closest_ball(enum color ball_color);
 int centermost_blue();
 int leftmost_blue();
+int leftmost_blue_top();
 
-const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "SEARCH_GREEN", "APPROACH_GREEN", "RELEASE" };
+
+
+const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "COLLECT2", "SEARCH_GREEN", "APPROACH_GREEN", "RELEASE" };
 
 
 
