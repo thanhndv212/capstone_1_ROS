@@ -13,10 +13,10 @@
 #define DEBUG 0 
 #define PERIOD 40
 
-#define GO_FRONT { data[0] = -0.17f; data[1] = 1; data[2] = 1.75f; data[3] = 1;  }
+#define GO_FRONT { data[0] = -0.17f; data[1] = 1; data[2] = 1.75f; data[3] = 1; }
 #define GO_BACK { data[0] = -0.06f; data[1] = -1; data[2] = -1.64f; data[3] = 1;  }
-#define TURN_RIGHT { data[0] = 1; data[1] = -0.17f; data[2] = -0.17f; data[3] = 1; }
-#define TURN_LEFT { data[0] = -1; data[1] = 0.15f; data[2] = 2.98f; data[3] = 1; }
+#define TURN_RIGHT { data[0] = 1; data[1] = -0.17f; data[2] = -0.17f; data[3] = 1;}
+#define TURN_LEFT { data[0] = -1; data[1] = 0.15f; data[2] = 2.98f; data[3] = 1;}
 #define ROLLER_ON { data[17] = 1; }
 #define ROLLER_REVERSE { data[14] = 1; }
 
@@ -54,6 +54,7 @@ bool red_in_range();
 bool ball_in_range(enum color ball_color);
 int closest_ball(enum color ball_color);
 int centermost_blue();
+int leftmost_blue();
 
 const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "SEARCH_GREEN", "APPROACH_GREEN", "RELEASE" };
 

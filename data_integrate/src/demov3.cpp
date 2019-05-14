@@ -28,12 +28,8 @@
 
 #define WEBCAM
 #define MYRIO
-#define DISTANCE_TICKS 40
+#define DISTANCE_TICKS 150
 #undef MYRIO
-
-#define DURATION 0.025f
-#define COLLECT_THRESH_FRONT 0.1f
-
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH;
 enum status recent_status = SEARCH;
@@ -60,8 +56,6 @@ int blue_cnt;
 float blue_x[20];
 float blue_y[20];
 float blue_z[20];
-
-float recent_target_b_x, recent_target_b_z;
 
 /* Red balls */
 int red_cnt;
@@ -187,18 +181,15 @@ int main(int argc, char **argv)
       switch(machine_status) {
         case SEARCH:
         {
-          int target_b = leftmost_blue();
-  
+          int target_b = centermost_blue();
+          
+          //target_b = closest_ball(BLUE);
+
           if(target_b < 0)
             TURN_RIGHT
           else {
-            if(blue_x[target_b] > 0.05) {
-              TURN_RIGHT // // ROS_INFO("search - R");
-            } else if(blue_x[target_b] < -0.05) {
-              TURN_LEFT // ROS_INFO("search - L");
-            } else {
-               machine_status = APPROACH; 
-            }
+            if(blue_x[target_b] > 0.1) TURN_RIGHT
+            else if(blue_x[target_b] < -0.1) TURN_LEFT
           }
 
           break;
@@ -206,34 +197,13 @@ int main(int argc, char **argv)
         case APPROACH:
         {
           GO_FRONT
-          int target_b = leftmost_blue();
-          if(fabs(blue_x[target_b]) >= 0.07) { machine_status = SEARCH; }
-          else {
-            if(blue_z[target_b] < 0.3) {
-              machine_status = COLLECT;
-            }
-          }
-      
-          if(red_in_range()) {
-            assert(closest_ball(RED) != -1);
-            if(red_z[closest_ball(RED)] <= blue_z[target_b]) {
-              red_phase2 = false;
-              machine_status = RED_AVOIDANCE;
-            }
-            // current_ticks = timer_ticks;
-          } 
-
-
           break;
         }
         case RED_AVOIDANCE:
-        {          
-          if(!red_in_range() && !red_phase2) red_phase2 = true;
-  
+        {
           if(!red_phase2) TURN_RIGHT
           else {
             GO_FRONT
-
             if(timer_ticks - current_ticks > DISTANCE_TICKS) {
               red_phase2 = false;
               machine_status = SEARCH;
@@ -246,35 +216,18 @@ int main(int argc, char **argv)
           ROLLER_ON
 
           int target = closest_ball(BLUE);
-          target = leftmost_blue();
-
           if(target == -1){
-            machine_status = SEARCH;
-            printf("recent target blue was at (%.3f, %.3f)\n", recent_target_b_x, recent_target_b_z);
-
-            if(fabs(recent_target_b_x)<0.033)
-              printf("(demo-simple) collected ball. ball_count = %d\n", ++ball_cnt);
+            //machine_status = SEARCH;
+            //printf("(demo-simple) collected ball. ball_count = %d\n", ++ball_cnt);
           }
-          else {
+          else{
             float xpos = blue_x[target];
             float zpos = blue_z[target];
 
-            if(xpos > 0.033) {
-              TURN_RIGHT ROLLER_ON
-            } else if(xpos < -0.033) {
-              TURN_LEFT ROLLER_ON
-            } else {
-               GO_FRONT ROLLER_ON
+            if(xpos > 0.033) {TURN_RIGHT ROLLER_ON}
+            else if(xpos < -0.033) {TURN_LEFT ROLLER_ON}
+            else { GO_FRONT ROLLER_ON }
             }
-          }
-
-          if(red_in_range()) {
-            if(red_z[closest_ball(RED)] <= blue_z[target]) machine_status = RED_AVOIDANCE;
-          }
-          if(target >= 0){
-            recent_target_b_x = blue_x[target];
-            recent_target_b_z = blue_z[target];
-          }
           break;
         }
         case SEARCH_GREEN:
@@ -298,7 +251,7 @@ int main(int argc, char **argv)
         printf("%d bytes written\n", (int) written);
       #endif
 
-	    ros::Duration(DURATION).sleep();
+	    ros::Duration(0.025).sleep();
 	    ros::spinOnce();
       timer_ticks++;
     }
@@ -347,6 +300,76 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     red_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
     red_z[i] = z_pos - z_offset;
   }
+
+  /* Step 2. state decision and transition */
+   switch(machine_status) {
+      case SEARCH:
+      {
+        int target = centermost_blue();
+        if(target >= 0) {
+          float xpos = blue_x[target];
+          float zpos = blue_z[target];
+
+          if(fabs(xpos) < 0.05)
+            machine_status = APPROACH;
+        }
+        break;
+      }
+
+      case APPROACH:
+      {
+        int target = centermost_blue();
+        float xpos, zpos;
+
+        if(target >= 0) {
+          xpos = blue_x[target];
+          zpos = blue_z[target];
+        }
+
+        if(red_in_range()) {
+          machine_status = RED_AVOIDANCE;
+        } else if(fabs(xpos)>=0.05 || target<0) {
+          machine_status = SEARCH;
+        } else if(ball_in_range(BLUE)) {
+          machine_status = COLLECT;
+        }
+        break;
+      }
+
+      case RED_AVOIDANCE:
+      {
+        if(red_in_range()) {
+          current_ticks = timer_ticks;
+          red_phase2 = false;
+        } else {
+          red_phase2 = true;
+        }
+        break;
+      }
+      case COLLECT:
+      {
+        int target = closest_ball(BLUE);
+        //printf("target = %d\n", target);
+
+        if(target = -1) {
+          machine_status = SEARCH;
+          printf("(demo-simple) Got the ball. Ball count = %d\n", ++ball_cnt);
+        } else if(blue_z[target] > 0.5) {
+          //machine_status = SEARCH;
+          //printf("(demo-simple) Got the ball. Ball count = %d\n", ++ball_cnt);
+        } else if(!ball_in_range(BLUE)) {
+          //machine_status=SEARCH;
+        }
+        if(red_in_range()) machine_status = RED_AVOIDANCE;
+
+        break;
+      }
+      case SEARCH_GREEN:
+      case APPROACH_GREEN:
+      case RELEASE:
+      default:
+        break;
+    }
 }
 
 bool ball_in_range(enum color ball_color) {
@@ -369,32 +392,10 @@ bool ball_in_range(enum color ball_color) {
 
 bool red_in_range() {
   for(int i=0; i<red_cnt; i++) {
-    if(fabs(red_x[i])<0.11 && red_z[i] <= 0.3)
+    if(fabs(red_x[i])<0.11 && red_z[i] <= 0.25)
       return true;
   }
   return false;
-}
-
-/* 
- * leftmost blue()
- * return leftmost blue visible in sight
- * return -1 if invisible
- */
-int leftmost_blue() {
-  if(!blue_cnt) 
-    return -1;
-
-  float xpos = blue_x[0];
-  int min_idx = 0;
-
-  for(int i=0; i<blue_cnt; i++) {
-    if(blue_x[i] < xpos) {
-      xpos = blue_x[i];
-      min_idx = i;
-    }
-  }
-
-  return min_idx;
 }
 
 /*
@@ -430,7 +431,7 @@ int closest_ball(enum color ball_color) {
       float front_dist = blue_z[0];
 
       for(int i=0; i<blue_cnt; i++){
-        if(blue_z[i] <= front_dist){
+        if(blue_z[i] < front_dist){
           front_dist = blue_z[i];
           result_idx = i;
         }
@@ -453,7 +454,7 @@ int closest_ball(enum color ball_color) {
 
       float front_dist = red_z[0];
       for(int i=0; i<red_cnt; i++){
-        if(red_z[i] <= front_dist){
+        if(red_z[i] < front_dist){
           front_dist = red_z[i];
           result_idx = i;
         }

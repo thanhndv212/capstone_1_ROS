@@ -67,3 +67,10 @@ target_link_libraries(demo_simple
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
 
+
+add_executable(calib src/calib.cpp)
+add_dependencies(calib core_msgs_generate_messages_cpp)
+target_link_libraries(calib
+  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+)
+
