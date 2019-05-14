@@ -415,7 +415,7 @@ vector<float> pixel2point(Point center, int radius){vector<float> position;
     Xc = roundf(Xc * 1000) / 1000;
     Yc = roundf(Yc * 1000) / 1000;
     Zc = roundf(Zc * 1000) / 1000;
-    Pc = sqrt(pow(Xc,2)+pow(Yc,2)+pow(Zc,2)-pow(0.355,2));
+    Pc = sqrt(pow(Xc,2)+pow(Yc,2)+pow(Zc,2)-pow(0.25,2));
     position.push_back(Xc);
     position.push_back(Yc);
     position.push_back(Pc);
