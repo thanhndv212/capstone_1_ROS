@@ -16,14 +16,14 @@ using namespace cv;
 
 // Declaration of trackbar functions to set HSV colorspace's parameters: In this section, we declare the functions that are displayed at the end on the multiple trackbars. We declare two sets of trackbar functions; one for the red ball, and one for the blue ball, Void functions are used so that they do not return any value. int is used when integer values are desired.
 int low_h2_r=155, high_h2_r=180;
-int low_h_r=0, low_s_r=200, low_v_r=100;
+int low_h_r=0, low_s_r=170, low_v_r=50;
 int high_h_r=15, high_s_r=255, high_v_r=255;
 
-int low_h_b=90, low_s_b=170, low_v_b=90;
+int low_h_b=90, low_s_b=160, low_v_b=70;
 int high_h_b=113, high_s_b=255, high_v_b=255;
 
-int low_h_g=90, low_s_g=170, low_v_g=90;
-int high_h_g=113, high_s_g=255, high_v_g=255;
+int low_h_g=30, low_s_g=75, low_v_g=80;
+int high_h_g=80, high_s_g=255, high_v_g=255;
 void on_low_h_thresh_trackbar_red(int, void *);
 void on_high_h_thresh_trackbar_red(int, void *);
 void on_low_h2_thresh_trackbar_red(int, void *);
