@@ -19,6 +19,8 @@
 #define TURN_LEFT { data[0] = -1; data[1] = 0.15f; data[2] = 2.98f; data[3] = 1;}
 #define ROLLER_ON { data[17] = 1; }
 #define ROLLER_REVERSE { data[14] = 1; }
+#define TRANSLATE_LEFT { data[16] = 1; }
+#define TRANSLATE_RIGHT { data[15] = 1; }
 
 #define PANIC(msg) { std::cout << "Kernel PANIC : " << msg << std::endl; assert(0); }
 
@@ -37,7 +39,7 @@ enum status {
   /* Turn on roller only for this state */
   COLLECT, COLLECT2,
   /* Return to goal pos */
-  SEARCH_GREEN, APPROACH_GREEN, RELEASE
+  SEARCH_GREEN, APPROACH_GREEN, APPROACH_GREEN_2, RELEASE
 };
 
 enum color {
@@ -58,15 +60,15 @@ void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position);
 bool red_in_range();
 bool ball_in_range(enum color ball_color);
 int closest_ball(enum color ball_color);
-int centermost_blue();
-int leftmost_blue();
-int leftmost_blue_top();
-int centermost_blue();
-int closest_blue();
+int centermost_green();
+int leftmost_green();
+int leftmost_green_top();
+int centermost_green();
+int closest_green();
 
 int target_blue(int policy);
 
-const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "COLLECT2", "SEARCH_GREEN", "APPROACH_GREEN", "RELEASE" };
+const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "COLLECT2", "SEARCH_GREEN", "APPROACH_GREEN", "APPROACH_GREEN_2", "RELEASE" };
 
 
 

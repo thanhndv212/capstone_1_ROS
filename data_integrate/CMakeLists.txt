@@ -40,30 +40,18 @@ include_directories(
 # add_dependencies(data_show_node core_msgs_generate_messages_cpp)
 
 
-add_executable(data_integration_node src/data_integration.cpp)
-add_dependencies(data_integration_node core_msgs_generate_messages_cpp)
-# target_link_libraries(data_show_node
-#  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
-# )
-target_link_libraries(data_integration_node
-  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
-)
-
-add_executable(demo_node src/demo.cpp)
-add_dependencies(demo_node core_msgs_generate_messages_cpp)
-# target_link_libraries(data_show_node
-#  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
-# )
-target_link_libraries(demo_node
-  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
-)
-
 add_executable(demo_simple src/demov2.cpp)
 add_dependencies(demo_simple core_msgs_generate_messages_cpp)
 # target_link_libraries(data_show_node
 #  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 # )
 target_link_libraries(demo_simple
+  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+)
+
+add_executable(demo_return src/demo_return_red.cpp)
+add_dependencies(demo_return core_msgs_generate_messages_cpp)
+target_link_libraries(demo_return
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
 
