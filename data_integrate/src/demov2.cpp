@@ -25,14 +25,16 @@
 #include "opencv2/opencv.hpp"
 #include "util.hpp"
 
-
+#define POLICY LEFTMOST
 #define WEBCAM
-#define MYRIO
+//#define MYRIO
 #define DISTANCE_TICKS 70
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
 #define DISTANCE_TICKS_CL 55
+
+#define TESTENV "demo-simple"
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH;
@@ -181,9 +183,9 @@ int main(int argc, char **argv)
 
     downside_angle = RAD(atof(downside_angle_));
 
-    printf("(demo-simple) start\n");
-    printf("(demo-simple) camera offset : x=%.3f, y=%.3f, z=%.3f [m]\n", x_offset, y_offset, z_offset);
-    printf("(demo-simple) downside angle : %.2f [deg] \n", RAD2DEG(downside_angle));
+    printf("(%s) start\n", TESTENV);
+    printf("(%s) camera offset : x=%.3f, y=%.3f, z=%.3f [m]\n", TESTENV, x_offset, y_offset, z_offset);
+    printf("(%s) downside angle : %.2f [deg] \n", TESTENV, RAD2DEG(downside_angle));
 
     #ifdef LIDAR
       ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, lidar_Callback);
@@ -197,45 +199,47 @@ int main(int argc, char **argv)
 		dataInit();
 
     #ifdef MYRIO
-    printf("(demo-simple) Connecting to %s:%d\n", IPADDR, PORT);
+    printf("(%s) Connecting to %s:%d\n", TESTENV, IPADDR, PORT);
     c_socket = socket(PF_INET, SOCK_STREAM, 0);
     c_addr.sin_addr.s_addr = inet_addr(IPADDR);
     c_addr.sin_family = AF_INET;
     c_addr.sin_port = htons(PORT);
 
     if(connect(c_socket, (struct sockaddr*) &c_addr, sizeof(c_addr)) == -1){
-      printf("(demo-simple) Failed to connect\n");
+      printf("(%s) Failed to connect\n", TESTENV);
       close(c_socket);
       return -1;
     }
-    printf("(demo-simple) Connected to %s:%d\n", IPADDR, PORT);
+    printf("(%s) Connected to %s:%d\n", TESTENV, IPADDR, PORT);
     #endif
 
-    printf("(demo-simple) Entering main routine...\n");
-    printf("(demo-simple) state = SEARCH\n");
+    printf("(%s) Entering main routine...\n", TESTENV);
+    printf("(%s) state = SEARCH\n", TESTENV);
 
     while(ros::ok){
       dataInit();
 
       if(recent_status != machine_status)
-        std::cout << "(demo-simple) state = " << cond[(recent_status = machine_status)] << std::endl;
+        std::cout << "(" << TESTENV << ") state = " << cond[(recent_status = machine_status)] << std::endl;
 
       /* switching between states */
       switch(machine_status) {
         case SEARCH:
         {
-          int target_b = leftmost_blue();
+          int target_b = target_blue(POLICY);     // leftmost_blue();
           int target_b_top = leftmost_blue_top();
 
           if(target_b < 0) {
             if(target_b_top >= 0) {
-              GO_FRONT
+              float xpos_top_b = blue_x_top[target_b_top];
+              if(xpos_top_b >= 0.3) TURN_RIGHT
+              else if(xpos_top_b <= -0.3) TURN_LEFT
+              else GO_FRONT
             } else {
               TURN_RIGHT 
             }
           } else {
             if(blue_x[target_b] > 0.05) {
-              printf("search-R");
               TURN_RIGHT // // ROS_INFO("search - R");
             } else if(blue_x[target_b] < -0.05) {
               TURN_LEFT // ROS_INFO("search - L");
@@ -249,7 +253,7 @@ int main(int argc, char **argv)
         case APPROACH:
         {
           GO_FRONT
-          int target_b = leftmost_blue();
+          int target_b = target_blue(POLICY);   //leftmost_blue();
           if(fabs(blue_x[target_b]) >= 0.10) { machine_status = SEARCH; }
           else {
             if(blue_z[target_b] < 0.2) {
@@ -273,7 +277,7 @@ int main(int argc, char **argv)
         {          
           if(!red_in_range() && !red_phase2){
             red_phase2 = true;
-            printf("(demo-simple) RED_AVOIDANCE2\n");
+            printf("(%s) RED_AVOIDANCE_2\n", TESTENV);
             current_ticks = timer_ticks;
           }
   
@@ -292,8 +296,7 @@ int main(int argc, char **argv)
         {
           ROLLER_ON
 
-          int target = closest_ball(BLUE);
-          target = leftmost_blue();
+          int target = target_blue(POLICY); // leftmost_blue();
 
           if(target == -1){
             machine_status = COLLECT2;
@@ -304,9 +307,9 @@ int main(int argc, char **argv)
             float zpos = blue_z[target];
 
             if(xpos > 0.015) {
-              TURN_RIGHT ROLLER_ON printf("col-R\n");
+              TURN_RIGHT ROLLER_ON //printf("col-R\n");
             } else if(xpos < -0.015) {
-              TURN_LEFT ROLLER_ON printf("col-L\n");
+              TURN_LEFT ROLLER_ON //printf("col-L\n");
             } else {
               current_ticks = timer_ticks;
               machine_status = COLLECT2;
@@ -329,7 +332,7 @@ int main(int argc, char **argv)
             machine_status = SEARCH;
 
             if(fabs(recent_target_b_x)<0.133)
-              printf("(demo-simple) collected ball. ball_count = %d\n", ++ball_cnt);
+              printf("(%s) collected ball. ball_count = %d\n",TESTENV , ++ball_cnt);
           }
           break;
         }
@@ -531,6 +534,24 @@ int leftmost_blue_top() {
 }
 
 /*
+ * target_blue(int policy)
+ * policy : LEFTMOST(0), CENTERMOST(1), CLOSEST(2)
+ */
+int target_blue(int policy) {
+  switch(policy) {
+    case LEFTMOST:
+      return leftmost_blue();
+    case CENTERMOST:
+      return centermost_blue();
+    case CLOSEST:
+      return closest_ball(BLUE);
+    default:
+      PANIC("Undefined ball policy");
+  }
+}
+
+
+/*
  * centermost blue()
  * return index of centermost blue ball amongst visible ones
  * -1 if no blue ball is in sight
@@ -570,12 +591,6 @@ int closest_ball(enum color ball_color) {
       }
 
       return result_idx;
-
-      if(fabs(blue_x[result_idx]) < 0.033)
-        return result_idx;
-      else{
-        return -1;
-      }
     }
     case RED:
     {
@@ -592,11 +607,7 @@ int closest_ball(enum color ball_color) {
         }
       }
 
-      if(fabs(red_x[result_idx] < 0.15) || 1) {
         return result_idx;
-      } else {
-        return -1;
-      }
       break;
     }
     default:
