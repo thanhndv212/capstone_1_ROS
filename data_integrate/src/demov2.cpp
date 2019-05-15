@@ -32,7 +32,7 @@
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
-#define DISTANCE_TICKS_CL 70
+#define DISTANCE_TICKS_CL 55
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH;
@@ -69,14 +69,26 @@ float red_x[20];
 float red_y[20];
 float red_z[20];
 
+/* Green balls */
+int green_cnt;
+float green_x[20];
+float green_y[20];
+float green_z[20];
+
+/* CAM02 */
 int blue_cnt_top;
 int red_cnt_top;
+int green_cnt_top;
+
 float blue_x_top[20];
 float blue_y_top[20];
 float blue_z_top[20];
 float red_x_top[20];
 float red_y_top[20];
 float red_z_top[20];
+float green_x_top[20];
+float green_y_top[20];
+float green_z_top[20];
 
 #endif
 
@@ -388,6 +400,19 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     red_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
     red_z[i] = z_pos - z_offset;
   }
+
+  int g_cnt = position->size_g;
+  green_cnt = position->size_g;
+
+  for(int i=0; i<g_cnt; i++) {
+    float x_pos = position->img_x_g[i];
+    float y_pos = position->img_y_g[i];
+    float z_pos = sqrt(pow(position->img_z_g[i],2.0) - pow(position->img_x_g[i],2.0));
+
+    green_x[i] = x_pos - x_offset;
+    green_z[i] = z_pos - z_offset;
+  }
+
 }
 
 /* callback 2 */
@@ -420,6 +445,24 @@ void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position)
     red_x_top[i] = x_pos - x_offset;
     red_z_top[i] = z_pos - z_offset;
   }
+
+  /* Green */
+
+  int g_cnt_top = position->size_g;
+  green_cnt_top = position->size_g;
+
+  for(int i=0; i<g_cnt_top; i++) {
+    float x_pos = position->img_x_g[i];
+    float y_pos = position->img_y_g[i];
+    float z_pos = sqrt(pow(position->img_z_g[i],2.0) - pow(position->img_x_g[i],2.0));
+
+    /* TODO : transform (Camera coordinate)->(LLF) */
+    green_x_top[i] = x_pos - x_offset;
+    green_z_top[i] = z_pos - z_offset;
+  }
+
+
+
 }
 /* callback 2 end*/
 
