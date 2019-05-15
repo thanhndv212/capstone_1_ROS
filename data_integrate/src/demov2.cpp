@@ -28,7 +28,7 @@
 
 #define WEBCAM
 #define MYRIO
-#define DISTANCE_TICKS 50
+#define DISTANCE_TICKS 70
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
@@ -265,7 +265,7 @@ int main(int argc, char **argv)
             current_ticks = timer_ticks;
           }
   
-          if(!red_phase2) TURN_RIGHT
+          if(!red_phase2) TURN_LEFT
           else {
             GO_FRONT
 
@@ -444,7 +444,7 @@ bool ball_in_range(enum color ball_color) {
 
 bool red_in_range() {
   for(int i=0; i<red_cnt; i++) {
-    if(fabs(red_x[i])<0.2 && red_z[i] <= 0.3)
+    if(fabs(red_x[i])<0.25 && red_z[i] <= 0.3)
       return true;
   }
   return false;
