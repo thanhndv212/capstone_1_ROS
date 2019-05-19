@@ -19,12 +19,11 @@ int low_h2_r=155, high_h2_r=180;
 int low_h_r=0, low_s_r=170, low_v_r=50;
 int high_h_r=15, high_s_r=255, high_v_r=255;
 
-int low_h_b=90, low_s_b=160, low_v_b=70;
+int low_h_b=90, low_s_b=120, low_v_b=70;
 int high_h_b=113, high_s_b=255, high_v_b=255;
 
 int low_h_g=30, low_s_g=75, low_v_g=80;
 int high_h_g=80, high_s_g=255, high_v_g=255;
-
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
 string intToString(int n);
 string floatToString(float f);
@@ -37,12 +36,15 @@ void morphOps(Mat &thresh);
 vector<float> pixel2point(Point center, int radius);
 
 // Declaration of trackbars function that set Canny edge's parameters: The Canny edge is a popular edge detecting algorithm, developed by John F. Canny. For the Sobel operations to be performed internally, we use kernel size of 3. We declare the canny edge trackbars for two sets; red and blue ball.
+void on_canny_edge_trackbar_red(int, void *);
 int lowThreshold_r = 100;
 int ratio_r = 3;
 int kernel_size_r = 3;
+void on_canny_edge_trackbar_blue(int, void *);
 int lowThreshold_b = 100;
 int ratio_b = 3;
 int kernel_size_b = 3;
+void on_canny_edge_trackbar_green(int, void *);
 int lowThreshold_g = 100;
 int ratio_g = 3;
 int kernel_size_g = 3;
@@ -103,9 +105,12 @@ int main(int argc, char **argv)
     vector<vector<Point> > contours_g;
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
-    VideoCapture cap(0);
+    VideoCapture cap(1);
     namedWindow("Video Capture", WINDOW_NORMAL);
     namedWindow("Result", WINDOW_NORMAL);
+
+    moveWindow("Video Capture",              50, 0);
+    moveWindow("Result", 470, 0);
 
 
     while((char)waitKey(1)!='q'){
@@ -188,7 +193,7 @@ vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
             float dis = ball_position_b[2];
             float pixel = 0.0002*pow(radius_b[i],2)-0.0362*radius_b[i]+1.766;
 		//cout << center_b[i]<<endl;
-            if (abs(dis-pixel)<0.15){
+            if (abs(dis-pixel)<0.10){
 		//cout <<"2"<<endl;
 		            ball_b_x.push_back(ball_position_b[0]);
                 ball_b_y.push_back(ball_position_b[1]);
@@ -236,7 +241,7 @@ vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
       ball_b_x.push_back(cx);
       ball_b_y.push_back(cy);
       ball_b_z.push_back(cz);
-      cout<<"blue"<<i<<"\t"<<dis<<endl;
+      cout<<"blue"<<k<<"\t"<<dis<<endl;
       text = "Solution2";
       putText(result, text, center,2,1,Scalar(255,0,0),2);
       circle( result, center, radius, Scalar(255,0,0), 2, 8, 0 );}
@@ -249,7 +254,7 @@ for( size_t i = 0; i< contours_r.size(); i++ ){
           float dis = ball_position_r[2];
           float pixel = 0.0002*pow(radius_r[i],2)-0.0362*radius_r[i]+1.766;
 
-          if (abs(dis-pixel)<0.15){
+          if (abs(dis-pixel)<0.13){
             ball_r_x.push_back(ball_position_r[0]);
             ball_r_y.push_back(ball_position_r[1]);
             ball_r_z.push_back(ball_position_r[2]);
@@ -297,7 +302,7 @@ if (houghcircle){
          ball_r_x.push_back(cx);
          ball_r_y.push_back(cy);
          ball_r_z.push_back(cz);
-         cout<<"red"<<i<<"\t"<<dis<<endl;
+         cout<<"red"<<k<<"\t"<<dis<<endl;
          text = "Solution2";
          Scalar color = Scalar( 0, 0, 255);
          putText(result, text, center,2,1,color,2);
