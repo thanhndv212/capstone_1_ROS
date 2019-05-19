@@ -38,9 +38,11 @@
 
 #define TESTENV "demo-return"
 
+#define RELIABLE
+
 /* State of our machine = SEARCH phase by default */
-enum status machine_status = SEARCH_GREEN;
-enum status recent_status = SEARCH_GREEN;
+enum status machine_status = APPROACH_GREEN;
+enum status recent_status = APPROACH_GREEN;
 
 /* Number of balls holding */
 int ball_cnt = 0;
@@ -232,6 +234,19 @@ int main(int argc, char **argv)
           int target_g = leftmost_green();
           int target_g_top = leftmost_green_top();
 
+          #ifdef RELIABLE
+          if(target_g_top >= 0) {
+            float xpos = green_x_top[target_g_top];
+            float zpos = green_z_top[target_g_top];
+
+            if(xpos > 0.2) TURN_RIGHT
+            else if(xpos < -0.2) TURN_LEFT
+            else GO_FRONT
+          
+            if(zpos <= 0.4) machine_status = APPROACH_GREEN;
+          }
+
+          #else
           if(target_g < 0) { // CAM01 : invisible
             if(target_g_top >= 0) {   // CAM02 : visible
               float xpos = green_x_top[target_g_top];
@@ -258,11 +273,56 @@ int main(int argc, char **argv)
               machine_status = APPROACH_GREEN;
             }
           }
+          #endif
             
           break;
         }
         case APPROACH_GREEN:
         {
+
+          #ifdef RELIABLE
+          switch(green_cnt) {
+            case 0:
+            {
+              GO_FRONT
+              break;
+            }
+            case 1:
+            {
+              float xg1 = green_x[0];
+              float zg1 = green_z[0];
+
+              if(xg1 > 0) TURN_RIGHT
+              else if(xg1 < 0) TURN_LEFT
+
+              break;
+            }
+            case 2:
+            {
+              float xg1 = green_x[0];
+              float xg2 = green_x[1];
+              float zg1 = green_z[0];
+              float zg2 = green_z[1];
+
+              assert(!std::isnan(zg1));
+              assert(!std::isnan(zg2));
+
+              float degree = atan((zg2-zg1)/(xg2-xg1));
+              float mid_x = 0.5 * (xg1 + xg2);
+              float mid_z = 0.5 * (zg1 + zg2);
+
+              float mid_x_trn = mid_x * cos(degree) + mid_z * sin(degree);
+              float mid_z_trn = mid_z * cos(degree) - mid_x * sin(degree);
+
+              printf("(%s) evaluate relative position\n", TESTENV);
+              printf("(%s) angle : %.3f[deg], offset : (X=%.3f, Z=%.3f)\n", TESTENV, degree, mid_x_trn, mid_z_trn);
+
+              machine_status = APPROACH_GREEN_2;
+              break;
+            }
+
+          }
+          #else
           int lgi = leftmost_green();
 
           float zpos_l = green_z[lgi];
@@ -275,7 +335,8 @@ int main(int argc, char **argv)
           } else {
             machine_status = APPROACH_GREEN_2;
           }        
-    
+          #endif
+ 
           break;
         }
         case APPROACH_GREEN_2:
@@ -621,46 +682,5 @@ void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan)
 			std::cout << "ball_X : "<< ball_X[i];
 			std::cout << "ball_Y : "<< ball_Y[i]<<std::endl;
 		}
-
-  /* Sample code */
-		////////////////////////////////////////////////////////////////
-		// // 자율 주행을 예제 코드 (ctrl + /)을 눌러 주석을 추가/제거할수 있다.///
-		// ////////////////////////////////////////////////////////////////
-		// dataInit();
-		// for(int i = 0; i < lidar_size-1; i++)
-		// 	    {
-		// 		if(lidar_distance[i]<lidar_distance[i+1]){lidar_obs=i;}
-		// 		else if(lidar_distance[i]==lidar_distance[i+1]){lidar_obs=i;}
-		// 		else {lidar_obs=i+1;}
-		// 	    }
-		// if(ball_number==0 || lidar_obs<0.3)
-		// {
-		// 		find_ball();
-		// }
-		// else
-		// {
-		// 	for(int i = 0; i < ball_number-1; i++)
-		// 	    {
-		// 		if(ball_distance[i]<ball_distance[i+1]){near_ball=i;}
-		// 		else if(ball_distance[i]==ball_distance[i+1]){near_ball=i;}
-		// 		else {near_ball=i+1;}
-		// 	    }
-		// 	if(ball_distance[near_ball]<0.1){data[4]=0; data[5]=0; data[21]=0;}
-		// 	else
-		// 	{
-		// 		data[20]=1;
-		// 		if(ball_X[near_ball]>0){data[4]=1;}  else{data[4]=-1;}
-		// 		if(ball_Y[near_ball]>0){data[5]=1;}  else{data[5]=-1;}
-		// 	}
-		// }
-
-		//자율 주행 알고리즘에 입력된 제어데이터(xbox 컨트롤러 데이터)를 myRIO에 송신(tcp/ip 통신)
-	      // for (int i = 0; i < 24; i++){
-	      // printf("%f ",data[i]);
-				//
-	      // }
-	      // printf("\n");
-			// printf("%d\n",action);
-
 
 #endif

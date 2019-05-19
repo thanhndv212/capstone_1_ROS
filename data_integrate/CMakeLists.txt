@@ -49,16 +49,28 @@ target_link_libraries(demo_simple
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
 
-add_executable(demo_return src/demo_return_red.cpp)
+add_executable(demo_return src/demo_return.cpp)
 add_dependencies(demo_return core_msgs_generate_messages_cpp)
 target_link_libraries(demo_return
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
 
-
-add_executable(calib src/calib.cpp)
-add_dependencies(calib core_msgs_generate_messages_cpp)
-target_link_libraries(calib
+add_executable(angle src/angle.cpp)
+add_dependencies(angle core_msgs_generate_messages_cpp)
+target_link_libraries(angle
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
 
+
+
+add_executable(rotate src/rotate.cpp)
+add_dependencies(rotate core_msgs_generate_messages_cpp)
+target_link_libraries(rotate
+  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+)
+
+add_executable(front src/front.cpp)
+add_dependencies(front core_msgs_generate_messages_cpp)
+target_link_libraries(front
+  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+)

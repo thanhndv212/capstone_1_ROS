@@ -29,14 +29,15 @@
 #define WEBCAM
 //#define MYRIO
 #define DISTANCE_TICKS 70
+#define DEG(x) ((x * 180.0 / 3.1415926536))
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
 #define DISTANCE_TICKS_CL 55
 
-#define ALIGN_THRESH 0.8f
+#define ALIGN_THRESH 0.95f
 
-#define TESTENV "demo-return-red"
+#define TESTENV "calibration"
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH_GREEN;
@@ -165,7 +166,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if(!flag) {
+    if(0) {
       printf("[Usage] \n");
       printf("rosrun data_integrate demo_simple -x <X-offset> -y <Y-offset> -z <Z-offset> -d <camera angle>\n");
       return -1;
@@ -220,6 +221,7 @@ int main(int argc, char **argv)
 
     while(ros::ok){
       dataInit();
+
       if(recent_status != machine_status)
         std::cout << "(" << TESTENV << ") state = " << cond[(recent_status = machine_status)] << std::endl;
 
@@ -228,93 +230,23 @@ int main(int argc, char **argv)
         case SEARCH:
         case SEARCH_GREEN:
         {
-          int target_g = leftmost_green();
-          int target_g_top = leftmost_green_top();
+          if(green_cnt_top > 1) {
+            float gx1 = green_x_top[0];
+            float gx2 = green_x_top[1];
+            float gz1 = green_z_top[0];
+            float gz2 = green_z_top[1];
 
-          if(target_g < 0) { // CAM01 : invisible
-            if(target_g_top >= 0) {   // CAM02 : visible
-              float xpos = red_x_top[target_g_top];
-              float zpos = red_z_top[target_g_top];
+            if(!(timer_ticks%10)) printf("(%s) P1(%.3f, %.3f), P2(%.3f, %.3f), x_offset = %.3f(from midline), Angle = %.4f(deg)\n", TESTENV, gx1, gz1, gx2, gz2, (gx1+gx2)*0.5, DEG(atan((gz2-gz1)/(gx2-gx1))));
 
-              if(xpos > 0.2) {
-                TURN_RIGHT
-                if(!(timer_ticks%10) || 0) printf("(%s) %s : turn_right\n", TESTENV, "SEARCH_GREEN");
-              } else if(xpos < -0.2) {
-                TURN_LEFT
-                if(!(timer_ticks%10)) printf("(%s) %s : turn_left\n", TESTENV, "SEARCH_GREEN");
-              } else {
-                GO_FRONT
-                if(!(timer_ticks%10)) printf("(%s) %s : go_front\n", TESTENV, "SEARCH_GREEN");
-              }
-            } else {        // CAM02 : invisible
-              TURN_RIGHT
-              if(!(timer_ticks%10) || 0) printf("(%s) %s : turn_right\n", TESTENV, "SEARCH_GREEN");
-            }
-          } else {  // CAM01 : visible
-            if(red_cnt == 1) {
-              float xpos_g = red_x[target_g];
-
-              if(xpos_g > 0) TURN_LEFT
-              else TURN_RIGHT
- 
-            } else if(red_cnt > 1) {
-              if(red_z_top[target_g_top] <= 1.0)
-                machine_status = APPROACH_GREEN;
-            }
           }
-            
           break;
         }
-        case APPROACH_GREEN:
-        {
-          int lgi = leftmost_green();
-      
-          if(lgi == -1) machine_status = SEARCH_GREEN;
-
-          float zpos_l = red_z[lgi];
-          float zpos_r = red_z[1-lgi];
-
-          if(!(timer_ticks%10)) printf("goal_L / goal_R = %.3f, %.3f\n", zpos_l, zpos_r);
-
-          if(zpos_l <= ALIGN_THRESH * zpos_r) {
-            TURN_LEFT
-            if(!(timer_ticks%10)) printf("(%s) %s : turn_left\n", TESTENV, "APPROACH_GREEN");
-
-          } else if(zpos_l >= ALIGN_THRESH * zpos_r) {
-            TURN_RIGHT
-            if(!(timer_ticks%10)) printf("(%s) %s : turn_right\n", TESTENV, "APPROACH_GREEN");
-          } else {
-            machine_status = APPROACH_GREEN_2;
-            printf("(%s) %s : entering %s\n", TESTENV, "APPROACH_GREEN", "APPROACH_GREEN_2");
-          }        
-    
-          break;
-        }
-        case APPROACH_GREEN_2:
-        {
-          PANIC("NotImplementedError at APPROACH_GREEN_2 : undefined reference to TRANSLATE_LEFT");
-          break;
-        }
-
-        case RELEASE:
-        {
-          PANIC("NotImplementedError at SEARCH_RELEASE");
-        }
-
         default:
           assert(0);
-
       }
 
 
       /* Send control data */
-
-      #ifdef MYRIO
-      size_t written = write(c_socket, data, sizeof(data));
-      if(DEBUG)
-        printf("%d bytes written\n", (int) written);
-      #endif
-
 	    ros::Duration(DURATION).sleep();
 	    ros::spinOnce();
       timer_ticks++;
