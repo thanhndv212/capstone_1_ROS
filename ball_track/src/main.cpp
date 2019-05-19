@@ -24,6 +24,7 @@ int high_h_b=113, high_s_b=255, high_v_b=255;
 
 int low_h_g=30, low_s_g=75, low_v_g=80;
 int high_h_g=80, high_s_g=255, high_v_g=255;
+
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
 string intToString(int n);
 string floatToString(float f);
@@ -36,15 +37,12 @@ void morphOps(Mat &thresh);
 vector<float> pixel2point(Point center, int radius);
 
 // Declaration of trackbars function that set Canny edge's parameters: The Canny edge is a popular edge detecting algorithm, developed by John F. Canny. For the Sobel operations to be performed internally, we use kernel size of 3. We declare the canny edge trackbars for two sets; red and blue ball.
-void on_canny_edge_trackbar_red(int, void *);
 int lowThreshold_r = 100;
 int ratio_r = 3;
 int kernel_size_r = 3;
-void on_canny_edge_trackbar_blue(int, void *);
 int lowThreshold_b = 100;
 int ratio_b = 3;
 int kernel_size_b = 3;
-void on_canny_edge_trackbar_green(int, void *);
 int lowThreshold_g = 100;
 int ratio_g = 3;
 int kernel_size_g = 3;
@@ -185,15 +183,13 @@ int count_g=0;
 vector<float> ball_r_x, ball_r_y, ball_r_z, ball_r_radius;
 vector<float> ball_b_x, ball_b_y, ball_b_z, ball_b_radius;
 vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
- int houghcircle =0;
     for( size_t i = 0; i< contours_b.size(); i++ ){
-      if((radius_b[i] > iMin_tracking_ball_size) && (10<center_b[i].x)&&(center_b[i].x < 610)){
+      if((radius_b[i] > iMin_tracking_ball_size) && (15<center_b[i].x)&&(center_b[i].x < 605)){
             vector<float> ball_position_b;
             ball_position_b = pixel2point(center_b[i], radius_b[i]);
             float dis = ball_position_b[2];
             float pixel = 0.0002*pow(radius_b[i],2)-0.0362*radius_b[i]+1.766;
 		//cout << center_b[i]<<endl;
-            if (abs(dis-pixel)<0.10){
 		//cout <<"2"<<endl;
 		            ball_b_x.push_back(ball_position_b[0]);
                 ball_b_y.push_back(ball_position_b[1]);
@@ -215,46 +211,17 @@ vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
                 circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
 		              cout<<"blue"<<i<<"\t"<<dis<<endl;
                 if (abs(l)>diff)i++;
-              }
-            else {houghcircle = 1; break;}
+
         }
       }
-  if (houghcircle){
-    vector<float> ball_b_x;
-    vector<float> ball_b_y;
-    vector<float> ball_b_z;
-    vector<Vec3f> circles_b;
-    HoughCircles(hsv_frame_blue_canny,circles_b,HOUGH_GRADIENT, 1, 30, 200, 20, 5, 200); //proceed circle
-    for(int k=0;k<circles_b.size();k++){
-      Vec3i c = circles_b[k];
-      Point center = Point(c[0], c[1]);
-      int radius = c[2];
-      vector<float> params;
-      params = pixel2point(center, radius);  //the information of k-th circle
-      float cx=params[0];  //x position of k-th circle
-      float cy=params[1];  //y position
-      float cz=params[2]; //radius
-      float dis = cz;
-      float pixel = 0.0002*pow(radius,2)-0.0362*radius+1.766;
-      if (abs(dis-pixel)<0.15){
-      count_b++;
-      ball_b_x.push_back(cx);
-      ball_b_y.push_back(cy);
-      ball_b_z.push_back(cz);
-      cout<<"blue"<<k<<"\t"<<dis<<endl;
-      text = "Solution2";
-      putText(result, text, center,2,1,Scalar(255,0,0),2);
-      circle( result, center, radius, Scalar(255,0,0), 2, 8, 0 );}
-       }}
-houghcircle =0;
+
 for( size_t i = 0; i< contours_r.size(); i++ ){
-    if((radius_r[i] > iMin_tracking_ball_size)&& (10<center_r[i].x)&&(center_r[i].x < 610)){
+    if((radius_r[i] > iMin_tracking_ball_size)&& (15<center_r[i].x)&&(center_r[i].x < 605)){
           vector<float> ball_position_r;
           ball_position_r = pixel2point(center_r[i], radius_r[i]);
           float dis = ball_position_r[2];
           float pixel = 0.0002*pow(radius_r[i],2)-0.0362*radius_r[i]+1.766;
 
-          if (abs(dis-pixel)<0.13){
             ball_r_x.push_back(ball_position_r[0]);
             ball_r_y.push_back(ball_position_r[1]);
             ball_r_z.push_back(ball_position_r[2]);
@@ -275,40 +242,8 @@ for( size_t i = 0; i< contours_r.size(); i++ ){
                 putText(result, text, center_r[i],2,1,Scalar(0,255,0),2);
                 circle( result, center_r[i], (int)radius_r[i], color, 2, 8, 0 );
                 if (abs(l)>diff)i++;
-                }
-          else {   houghcircle = 1; break;}
-      }
-    }
-if (houghcircle){
-       vector<float> ball_r_x;
-       vector<float> ball_r_y;
-       vector<float> ball_r_z;
-       vector<Vec3f> circles_r;
-       HoughCircles(hsv_frame_red_canny,circles_r,HOUGH_GRADIENT, 1, 30, 200, 20, 5, 200); //proceed circle
-       cout << circles_r.size()<<endl;
-       for(int k=0;k<circles_r.size();k++){
-         Vec3i c = circles_r[k];
-         Point center = Point(c[0], c[1]);
-         int radius = c[2];
-         vector<float> params;
-         params = pixel2point(center, radius);  //the information of k-th circle
-         float cx=params[0];  //x position of k-th circle
-         float cy=params[1];  //y position
-         float cz=params[2]; //radius
-         float dis = cz;
-         float pixel = 0.0002*pow(radius,2)-0.0362*radius+1.766;
-         if (abs(dis-pixel)<0.15){
-         count_r++;
-         ball_r_x.push_back(cx);
-         ball_r_y.push_back(cy);
-         ball_r_z.push_back(cz);
-         cout<<"red"<<k<<"\t"<<dis<<endl;
-         text = "Solution2";
-         Scalar color = Scalar( 0, 0, 255);
-         putText(result, text, center,2,1,color,2);
-         circle( result, center, radius, color, 2, 8, 0 );}
-       }
-     }
+              }}
+
     for( size_t i = 0; i< contours_g.size(); i++ ){
       if (radius_g[i] > iMin_tracking_ball_size){Scalar color = Scalar( 0, 255,0 );
             drawContours( hsv_frame_green_canny, contours_g_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
