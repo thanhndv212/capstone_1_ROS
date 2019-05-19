@@ -23,7 +23,7 @@ int high_h_r=15, high_s_r=255, high_v_r=255;
 int low_h_b=90, low_s_b=160, low_v_b=70;
 int high_h_b=113, high_s_b=255, high_v_b=255;
 
-int low_h_g=30, low_s_g=75, low_v_g=80;
+int low_h_g=40, low_s_g=75, low_v_g=80;
 int high_h_g=80, high_s_g=255, high_v_g=255;
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
 string intToString(int n);
@@ -224,7 +224,7 @@ vector<float> ball_b_z, ball_g_radius,ball_b_radius , ball_r_radius;
             text = "Red ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_r[i],2,1,Scalar(0,255,0),2);
             circle( result, center_r[i], (int)radius_r[i], color, 2, 8, 0 );
-            if (abs(l)<diff)i++;
+            if (abs(l)>diff)i++;
 
         }
     }
@@ -257,7 +257,7 @@ vector<float> ball_b_z, ball_g_radius,ball_b_radius , ball_r_radius;
             text = "Blue ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_b[i],2,1,Scalar(0,255,0),2);
             circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
-            if (abs(l)<diff)i++;
+            if (abs(l)>diff)i++;
         }
     }
     for( size_t i = 0; i< contours_g.size(); i++ ){
@@ -288,7 +288,7 @@ vector<float> ball_b_z, ball_g_radius,ball_b_radius , ball_r_radius;
             text = "Green ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_g[i],2,1,Scalar(0,255,0),2);
             circle( result, center_g[i], (int)radius_g[i], color, 2, 8, 0 );
-            if (abs(l)<diff)i++;
+            if (abs(l)>diff)i++;
 
         }
     }
