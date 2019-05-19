@@ -25,26 +25,6 @@ int high_h_b=113, high_s_b=255, high_v_b=255;
 
 int low_h_g=30, low_s_g=75, low_v_g=80;
 int high_h_g=80, high_s_g=255, high_v_g=255;
-void on_low_h_thresh_trackbar_red(int, void *);
-void on_high_h_thresh_trackbar_red(int, void *);
-void on_low_h2_thresh_trackbar_red(int, void *);
-void on_high_h2_thresh_trackbar_red(int, void *);
-void on_low_s_thresh_trackbar_red(int, void *);
-void on_high_s_thresh_trackbar_red(int, void *);
-void on_low_v_thresh_trackbar_red(int, void *);
-void on_high_v_thresh_trackbar_red(int, void *);
-void on_low_h_thresh_trackbar_blue(int, void *);
-void on_high_h_thresh_trackbar_blue(int, void *);
-void on_low_s_thresh_trackbar_blue(int, void *);
-void on_high_s_thresh_trackbar_blue(int, void *);
-void on_low_v_thresh_trackbar_blue(int, void *);
-void on_high_v_thresh_trackbar_blue(int, void *);
-void on_low_h_thresh_trackbar_green(int, void *);
-void on_high_h_thresh_trackbar_green(int, void *);
-void on_low_s_thresh_trackbar_green(int, void *);
-void on_high_s_thresh_trackbar_green(int, void *);
-void on_low_v_thresh_trackbar_green(int, void *);
-void on_high_v_thresh_trackbar_green(int, void *);
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
 string intToString(int n);
 string floatToString(float f);
@@ -57,15 +37,12 @@ void morphOps(Mat &thresh);
 vector<float> pixel2point(Point center, int radius);
 
 // Declaration of trackbars function that set Canny edge's parameters: The Canny edge is a popular edge detecting algorithm, developed by John F. Canny. For the Sobel operations to be performed internally, we use kernel size of 3. We declare the canny edge trackbars for two sets; red and blue ball.
-void on_canny_edge_trackbar_red(int, void *);
 int lowThreshold_r = 100;
 int ratio_r = 3;
 int kernel_size_r = 3;
-void on_canny_edge_trackbar_blue(int, void *);
 int lowThreshold_b = 100;
 int ratio_b = 3;
 int kernel_size_b = 3;
-void on_canny_edge_trackbar_green(int, void *);
 int lowThreshold_g = 100;
 int ratio_g = 3;
 int kernel_size_g = 3;
@@ -132,59 +109,14 @@ int main(int argc, char **argv)
     if(DEBUG) 
     {
     namedWindow("Video Capture", WINDOW_NORMAL);
-    namedWindow("Object Detection_HSV_Red", WINDOW_NORMAL);
-    namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
-    namedWindow("Object Detection_HSV_Green", WINDOW_NORMAL);
-    namedWindow("Canny Edge for Red Ball", WINDOW_NORMAL);
-    namedWindow("Canny Edge for Blue Ball", WINDOW_NORMAL);
-    namedWindow("Canny Edge for Green Ball", WINDOW_NORMAL);
     }
     namedWindow("Camera :: TOP", WINDOW_NORMAL);
     if(DEBUG)
     {
     moveWindow("Video Capture",              50, 0);
-    moveWindow("Object Detection_HSV_Red",  50,370);
-    moveWindow("Object Detection_HSV_Green",  890,370);
-    moveWindow("Object Detection_HSV_Blue",470,370);
-    moveWindow("Canny Edge for Red Ball",   50,730);
-    moveWindow("Canny Edge for Green Ball",   890,730);
-    moveWindow("Canny Edge for Blue Ball", 470,730);
     }
     moveWindow("Camera :: TOP", 50, 0);
 
-
-    if(DEBUG) {
-
-// Trackbars to set thresholds for HSV values : Red ball: In this part, we set the thresholds, in HSV color space values, for the red ball's trackbar. Since the red color has empty space in between, we need two sets of H values fro red ball.
-    createTrackbar("Low H","Object Detection_HSV_Red", &low_h_r, 180, on_low_h_thresh_trackbar_red);
-    createTrackbar("High H","Object Detection_HSV_Red", &high_h_r, 180, on_high_h_thresh_trackbar_red);
-    createTrackbar("Low H2","Object Detection_HSV_Red", &low_h2_r, 180, on_low_h2_thresh_trackbar_red);
-    createTrackbar("High H2","Object Detection_HSV_Red", &high_h2_r, 180, on_high_h2_thresh_trackbar_red);
-    createTrackbar("Low S","Object Detection_HSV_Red", &low_s_r, 255, on_low_s_thresh_trackbar_red);
-    createTrackbar("High S","Object Detection_HSV_Red", &high_s_r, 255, on_high_s_thresh_trackbar_red);
-    createTrackbar("Low V","Object Detection_HSV_Red", &low_v_r, 255, on_low_v_thresh_trackbar_red);
-    createTrackbar("High V","Object Detection_HSV_Red", &high_v_r, 255, on_high_v_thresh_trackbar_red);
-
-    // Trackbars to set thresholds for HSV values : Blue ball: In this part, we set the thresholds, in HSV color space, for the blue ball's trackbar.
-    createTrackbar("Low H","Object Detection_HSV_Blue", &low_h_b, 180, on_low_h_thresh_trackbar_blue);
-    createTrackbar("High H","Object Detection_HSV_Blue", &high_h_b, 180, on_high_h_thresh_trackbar_blue);
-    createTrackbar("Low S","Object Detection_HSV_Blue", &low_s_b, 255, on_low_s_thresh_trackbar_blue);
-    createTrackbar("High S","Object Detection_HSV_Blue", &high_s_b, 255, on_high_s_thresh_trackbar_blue);
-    createTrackbar("Low V","Object Detection_HSV_Blue", &low_v_b, 255, on_low_v_thresh_trackbar_blue);
-    createTrackbar("High V","Object Detection_HSV_Blue", &high_v_b, 255, on_high_v_thresh_trackbar_blue);
-
-    createTrackbar("Low H","Object Detection_HSV_Green", &low_h_g, 180, on_low_h_thresh_trackbar_green);
-    createTrackbar("High H","Object Detection_HSV_Green", &high_h_g, 180, on_high_h_thresh_trackbar_green);
-    createTrackbar("Low S","Object Detection_HSV_Green", &low_s_g, 255, on_low_s_thresh_trackbar_green);
-    createTrackbar("High S","Object Detection_HSV_Green", &high_s_g, 255, on_high_s_thresh_trackbar_green);
-    createTrackbar("Low V","Object Detection_HSV_Green", &low_v_g, 255, on_low_v_thresh_trackbar_green);
-    createTrackbar("High V","Object Detection_HSV_Green", &high_v_g, 255, on_high_v_thresh_trackbar_green);
-
-    // Trackbar to set parameter for Canny Edge: In this part, we set the threshold for the Canny edge trackbar.
-    createTrackbar("Min Threshold:","Canny Edge for Red Ball", &lowThreshold_r, 100, on_canny_edge_trackbar_red);
-    createTrackbar("Min Threshold:","Canny Edge for Blue Ball", &lowThreshold_b, 100, on_canny_edge_trackbar_blue);
-    createTrackbar("Min Threshold:","Canny Edge for Green Ball", &lowThreshold_g, 100, on_canny_edge_trackbar_green);
-    }
 
     while((char)waitKey(1)!='q'){
     cap>>frame;
@@ -380,12 +312,6 @@ if (count_g && DEBUG)  cout<<ball_g_z[0]<<"\t"<<ball_g_z[0]<<endl;
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
     if(DEBUG) {
     imshow("Video Capture",calibrated_frame);
-    imshow("Object Detection_HSV_Red",hsv_frame_red);
-    imshow("Object Detection_HSV_Blue",hsv_frame_blue);
-    imshow("Object Detection_HSV_Green",hsv_frame_green);
-    imshow("Canny Edge for Green Ball", hsv_frame_green_canny);
-    imshow("Canny Edge for Red Ball", hsv_frame_red_canny);
-    imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
     }
     imshow("Camera :: TOP", result);
 
@@ -434,80 +360,4 @@ vector<float> pixel2point(Point center, int radius){vector<float> position;
     position.push_back(Yc);
     position.push_back(Pc);
     return position;
-}
-
-// Trackbar for image threshodling in HSV colorspace : Red : The functions had been declared and created, and now they are positioned in the relevant result frames. In this case, in the red ball's frames.
-void on_low_h_thresh_trackbar_red(int, void *){low_h_r = min(high_h_r-1, low_h_r);
-    setTrackbarPos("Low H","Object Detection_HSV_Red", low_h_r);
-}
-void on_high_h_thresh_trackbar_red(int, void *){high_h_r = max(high_h_r, low_h_r+1);
-    setTrackbarPos("High H", "Object Detection_HSV_Red", high_h_r);
-}
-void on_low_h2_thresh_trackbar_red(int, void *){low_h2_r = min(high_h2_r-1, low_h2_r);
-    setTrackbarPos("Low H2","Object Detection_HSV_Red", low_h2_r);
-}
-void on_high_h2_thresh_trackbar_red(int, void *){high_h_r = max(high_h_r, low_h_r+1);
-    setTrackbarPos("High H", "Object Detection_HSV_Red", high_h_r);
-}
-void on_low_s_thresh_trackbar_red(int, void *){low_s_r = min(high_s_r-1, low_s_r);
-    setTrackbarPos("Low S","Object Detection_HSV_Red", low_s_r);
-}
-void on_high_s_thresh_trackbar_red(int, void *){high_s_r = max(high_s_r, low_s_r+1);
-    setTrackbarPos("High S", "Object Detection_HSV_Red", high_s_r);
-}
-void on_low_v_thresh_trackbar_red(int, void *){low_v_r= min(high_v_r-1, low_v_r);
-    setTrackbarPos("Low V","Object Detection_HSV_Red", low_v_r);
-}
-void on_high_v_thresh_trackbar_red(int, void *){high_v_r = max(high_v_r, low_v_r+1);
-    setTrackbarPos("High V", "Object Detection_HSV_Red", high_v_r);
-}
-
-// Trackbar for image threshodling in HSV colorspace : Blue : The functions had been declared and created, and now they are positioned in the relevant result frames. In this case, in the blue ball's frames.
-void on_low_h_thresh_trackbar_blue(int, void *){low_h_b = min(high_h_b-1, low_h_b);
-    setTrackbarPos("Low H","Object Detection_HSV_Blue", low_h_b);
-}
-void on_high_h_thresh_trackbar_blue(int, void *){high_h_b = max(high_h_b, low_h_b+1);
-    setTrackbarPos("High H", "Object Detection_HSV_Blue", high_h_b);
-}
-void on_low_s_thresh_trackbar_blue(int, void *){low_s_b = min(high_s_b-1, low_s_b);
-    setTrackbarPos("Low S","Object Detection_HSV_Blue", low_s_b);
-}
-void on_high_s_thresh_trackbar_blue(int, void *){high_s_b = max(high_s_b, low_s_b+1);
-    setTrackbarPos("High S", "Object Detection_HSV_Blue", high_s_b);
-}
-void on_low_v_thresh_trackbar_blue(int, void *){low_v_b= min(high_v_b-1, low_v_b);
-    setTrackbarPos("Low V","Object Detection_HSV_Blue", low_v_b);
-}
-void on_high_v_thresh_trackbar_blue(int, void *){high_v_b = max(high_v_b, low_v_b+1);
-    setTrackbarPos("High V", "Object Detection_HSV_Blue", high_v_b);
-}
-
-
-// Trackbar for image threshodling in HSV colorspace : Blue : The functions had been declared and created, and now they are positioned in the relevant result frames. In this case, in the blue ball's frames.
-void on_low_h_thresh_trackbar_green(int, void *){low_h_g = min(high_h_g-1, low_h_g);
-    setTrackbarPos("Low H","Object Detection_HSV_Green", low_h_g);
-}
-void on_high_h_thresh_trackbar_green(int, void *){high_h_g = max(high_h_g, low_h_g+1);
-    setTrackbarPos("High H", "Object Detection_HSV_Green", high_h_g);
-}
-void on_low_s_thresh_trackbar_green(int, void *){low_s_g = min(high_s_g-1, low_s_g);
-    setTrackbarPos("Low S","Object Detection_HSV_Green", low_s_g);
-}
-void on_high_s_thresh_trackbar_green(int, void *){high_s_g = max(high_s_g, low_s_g+1);
-    setTrackbarPos("High S", "Object Detection_HSV_Green", high_s_g);
-}
-void on_low_v_thresh_trackbar_green(int, void *){low_v_g= min(high_v_g-1, low_v_g);
-    setTrackbarPos("Low V","Object Detection_HSV_Green", low_v_g);
-}
-void on_high_v_thresh_trackbar_green(int, void *){high_v_g = max(high_v_g, low_v_g+1);
-    setTrackbarPos("High V", "Object Detection_HSV_Green", high_v_g);
-}
-
-
-// Trackbar for Canny edge algorithm : The trackbars for the Canny edge window are positioned here, for both the red and blue balls.
-void on_canny_edge_trackbar_red(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Red Ball", lowThreshold_r);
-}
-void on_canny_edge_trackbar_blue(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Blue Ball", lowThreshold_b);
-}
-void on_canny_edge_trackbar_green(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Green Ball", lowThreshold_g);
 }
