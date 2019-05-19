@@ -10,6 +10,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 #define DEBUG 0
+#define INDEX_DEFAULT 2
 
 using namespace std;
 using namespace cv;
@@ -96,7 +97,7 @@ void sigint_handler(int sig){
 // Here, we start our main function.
 int main(int argc, char **argv)
 {
-    int idx = (argc == 1)? (0) : (2);
+    int idx = (argc == 1)? INDEX_DEFAULT : (atoi(argv[1]));
 
     signal(SIGINT, sigint_handler);
 
@@ -127,6 +128,9 @@ int main(int argc, char **argv)
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
     VideoCapture cap(idx);
+
+    if(DEBUG) 
+    {
     namedWindow("Video Capture", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Red", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
@@ -134,9 +138,10 @@ int main(int argc, char **argv)
     namedWindow("Canny Edge for Red Ball", WINDOW_NORMAL);
     namedWindow("Canny Edge for Blue Ball", WINDOW_NORMAL);
     namedWindow("Canny Edge for Green Ball", WINDOW_NORMAL);
-
-    namedWindow("Result", WINDOW_NORMAL);
-
+    }
+    namedWindow("Camera :: TOP", WINDOW_NORMAL);
+    if(DEBUG)
+    {
     moveWindow("Video Capture",              50, 0);
     moveWindow("Object Detection_HSV_Red",  50,370);
     moveWindow("Object Detection_HSV_Green",  890,370);
@@ -144,9 +149,11 @@ int main(int argc, char **argv)
     moveWindow("Canny Edge for Red Ball",   50,730);
     moveWindow("Canny Edge for Green Ball",   890,730);
     moveWindow("Canny Edge for Blue Ball", 470,730);
-    moveWindow("Result", 470, 0);
+    }
+    moveWindow("Camera :: TOP", 50, 0);
 
 
+    if(DEBUG) {
 
 // Trackbars to set thresholds for HSV values : Red ball: In this part, we set the thresholds, in HSV color space values, for the red ball's trackbar. Since the red color has empty space in between, we need two sets of H values fro red ball.
     createTrackbar("Low H","Object Detection_HSV_Red", &low_h_r, 180, on_low_h_thresh_trackbar_red);
@@ -177,7 +184,7 @@ int main(int argc, char **argv)
     createTrackbar("Min Threshold:","Canny Edge for Red Ball", &lowThreshold_r, 100, on_canny_edge_trackbar_red);
     createTrackbar("Min Threshold:","Canny Edge for Blue Ball", &lowThreshold_b, 100, on_canny_edge_trackbar_blue);
     createTrackbar("Min Threshold:","Canny Edge for Green Ball", &lowThreshold_g, 100, on_canny_edge_trackbar_green);
-
+    }
 
     while((char)waitKey(1)!='q'){
     cap>>frame;
@@ -371,6 +378,7 @@ if (count_g && DEBUG)  cout<<ball_g_z[0]<<"\t"<<ball_g_z[0]<<endl;
     pub.publish(msg);
 
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
+    if(DEBUG) {
     imshow("Video Capture",calibrated_frame);
     imshow("Object Detection_HSV_Red",hsv_frame_red);
     imshow("Object Detection_HSV_Blue",hsv_frame_blue);
@@ -378,7 +386,8 @@ if (count_g && DEBUG)  cout<<ball_g_z[0]<<"\t"<<ball_g_z[0]<<endl;
     imshow("Canny Edge for Green Ball", hsv_frame_green_canny);
     imshow("Canny Edge for Red Ball", hsv_frame_red_canny);
     imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
-    imshow("Result", result);
+    }
+    imshow("Camera :: TOP", result);
 
 
     }

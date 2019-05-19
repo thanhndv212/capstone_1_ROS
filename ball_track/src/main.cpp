@@ -10,6 +10,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 #define DEBUG 0
+#define INDEX_DEFAULT 1
 
 using namespace std;
 using namespace cv;
@@ -98,6 +99,9 @@ int main(int argc, char **argv)
 {
     signal(SIGINT, sigint_handler);
 
+    // CAM index : parsing arguments
+    int idx = (argc==1)? INDEX_DEFAULT : atoi(argv[1]);
+
     ros::init(argc, argv, "ball_track"); //init ros nodd
     ros::NodeHandle nh; //create node handler
     pub = nh.advertise<core_msgs::ball_position_top>("/position", 100); //setting publisher
@@ -124,7 +128,8 @@ int main(int argc, char **argv)
     vector<vector<Point> > contours_g;
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
-    VideoCapture cap(1);
+    VideoCapture cap(idx);
+    if(DEBUG) {
     namedWindow("Video Capture", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Red", WINDOW_NORMAL);
     namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
@@ -132,9 +137,10 @@ int main(int argc, char **argv)
     namedWindow("Canny Edge for Red Ball", WINDOW_NORMAL);
     namedWindow("Canny Edge for Blue Ball", WINDOW_NORMAL);
     namedWindow("Canny Edge for Green Ball", WINDOW_NORMAL);
+    }
+    namedWindow("Camera :: MAIN", WINDOW_NORMAL);
 
-    namedWindow("Result", WINDOW_NORMAL);
-
+    if(DEBUG) {
     moveWindow("Video Capture",              50, 0);
     moveWindow("Object Detection_HSV_Red",  50,370);
     moveWindow("Object Detection_HSV_Green",  890,370);
@@ -142,7 +148,8 @@ int main(int argc, char **argv)
     moveWindow("Canny Edge for Red Ball",   50,730);
     moveWindow("Canny Edge for Green Ball",   890,730);
     moveWindow("Canny Edge for Blue Ball", 470,730);
-    moveWindow("Result", 470, 0);
+    }
+    moveWindow("Camera :: MAIN", 470, 0);
 
 
 
@@ -366,6 +373,7 @@ if(count_b)
     pub.publish(msg);
 
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
+    if(DEBUG) {
     imshow("Video Capture",calibrated_frame);
     imshow("Object Detection_HSV_Red",hsv_frame_red);
     imshow("Object Detection_HSV_Blue",hsv_frame_blue);
@@ -373,7 +381,8 @@ if(count_b)
     imshow("Canny Edge for Green Ball", hsv_frame_green_canny);
     imshow("Canny Edge for Red Ball", hsv_frame_red_canny);
     imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
-    imshow("Result", result);
+    }
+    imshow("Camera :: MAIN", result);
 
 
     }

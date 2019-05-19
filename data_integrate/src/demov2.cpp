@@ -25,9 +25,9 @@
 #include "opencv2/opencv.hpp"
 #include "util.hpp"
 
-#define POLICY LEFTMOST
+#define POLICY CLOSEST
 #define WEBCAM
-//#define MYRIO
+#define MYRIO
 #define DISTANCE_TICKS 70
 
 #define DURATION 0.025f
@@ -239,9 +239,9 @@ int main(int argc, char **argv)
               TURN_RIGHT 
             }
           } else {
-            if(blue_x[target_b] > 0.05) {
+            if(blue_x[target_b] > 0.15) {
               TURN_RIGHT // // ROS_INFO("search - R");
-            } else if(blue_x[target_b] < -0.05) {
+            } else if(blue_x[target_b] < -0.15) {
               TURN_LEFT // ROS_INFO("search - L");
             } else {
                machine_status = APPROACH; 
@@ -254,7 +254,7 @@ int main(int argc, char **argv)
         {
           GO_FRONT
           int target_b = target_blue(POLICY);   //leftmost_blue();
-          if(fabs(blue_x[target_b]) >= 0.10) { machine_status = SEARCH; }
+          if(fabs(blue_x[target_b]) >= 0.20) { machine_status = SEARCH; }
           else {
             if(blue_z[target_b] < 0.2) {
               machine_status = COLLECT;
@@ -306,9 +306,9 @@ int main(int argc, char **argv)
             float xpos = blue_x[target];
             float zpos = blue_z[target];
 
-            if(xpos > 0.015) {
+            if(xpos > 0.013) {
               TURN_RIGHT ROLLER_ON //printf("col-R\n");
-            } else if(xpos < -0.015) {
+            } else if(xpos < -0.013) {
               TURN_LEFT ROLLER_ON //printf("col-L\n");
             } else {
               current_ticks = timer_ticks;

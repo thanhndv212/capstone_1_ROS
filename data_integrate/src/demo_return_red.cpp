@@ -27,14 +27,14 @@
 
 #define POLICY LEFTMOST
 #define WEBCAM
-//#define MYRIO
+#define MYRIO
 #define DISTANCE_TICKS 70
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
 #define DISTANCE_TICKS_CL 55
 
-#define ALIGN_THRESH 0.95f
+#define ALIGN_THRESH 0.8f
 
 #define TESTENV "demo-return"
 
@@ -258,7 +258,8 @@ int main(int argc, char **argv)
               else TURN_RIGHT
  
             } else if(red_cnt > 1) {
-              machine_status = APPROACH_GREEN;
+              if(red_z_top[target_g_top] <= 1.0)
+                machine_status = APPROACH_GREEN;
             }
           }
             
@@ -267,16 +268,24 @@ int main(int argc, char **argv)
         case APPROACH_GREEN:
         {
           int lgi = leftmost_green();
+      
+          if(lgi == -1) machine_status = SEARCH_GREEN;
 
           float zpos_l = red_z[lgi];
           float zpos_r = red_z[1-lgi];
 
+          if(!(timer_ticks%10)) printf("goal_L / goal_R = %.3f, %.3f\n", zpos_l, zpos_r);
+
           if(zpos_l <= ALIGN_THRESH * zpos_r) {
-            TURN_RIGHT
-          } else if(zpos_l >= ALIGN_THRESH * zpos_r) {
             TURN_LEFT
+            if(!(timer_ticks%10)) printf("(%s) %s : turn_left\n", TESTENV, "APPROACH_GREEN");
+
+          } else if(zpos_l >= ALIGN_THRESH * zpos_r) {
+            TURN_RIGHT
+            if(!(timer_ticks%10)) printf("(%s) %s : turn_right\n", TESTENV, "APPROACH_GREEN");
           } else {
             machine_status = APPROACH_GREEN_2;
+            printf("(%s) %s : entering %s\n", TESTENV, "APPROACH_GREEN", "APPROACH_GREEN_2");
           }        
     
           break;
