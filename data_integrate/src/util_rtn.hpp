@@ -24,7 +24,7 @@
 #define TURN_RIGHT_SLOW { data[20] = 1; }
 #define TURN_LEFT_SLOW { data[21] = 1; }
 
-#define MSG(x) { if(!(timer_ticks%10)) std::cout << "(" << TESTENV << ") " << x << std::endl; }
+#define MSGE(x) { if(!(timer_ticks%10)) std::cout << "(" << TESTENV << ") " << x << std::endl; }
 #define PANIC(msg) { std::cout << "Kernel PANIC at " << msg << std::endl; assert(0); }
 
 #define LEFTMOST 0
@@ -73,7 +73,7 @@ int closest_green();
 
 int target_blue(int policy);
 
-const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "COLLECT2", "SEARCH_GREEN", "APPROACH_GREEN", "APPROACH_GREEN_2", "RELEASE" };
+const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "COLLECT2", "SEARCH_GREEN", "APPROACH_GREEN", "APPROACH_GREEN_2", "APPROACH_GREEN_3", "APPROACH_GREEN_4", "RELEASE" };
 
 
 

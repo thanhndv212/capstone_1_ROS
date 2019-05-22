@@ -34,6 +34,9 @@
 #define COLLECT_THRESH_FRONT 0.1f
 #define DISTANCE_TICKS_CL 55
 
+#define ROTATE_CONST_SLOW 1.1f
+#define TRANSLATE_CONST_SLOW 200.0f
+
 #define ALIGN_THRESH 0.95f
 
 #define TESTENV "demo-return"
@@ -399,17 +402,17 @@ int main(int argc, char **argv)
          */
         case APPROACH_GREEN_2:
         {
-          uint32_t goal_rotate_ticks = (uint32_t) (0.713f * fabs(goal_theta));
-          uint32_t goal_translate_ticks = (uint32_t) (100.0f * fabs(goal_x));
+          uint32_t goal_rotate_ticks = (uint32_t) (ROTATE_CONST_SLOW * fabs(goal_theta));
+          uint32_t goal_translate_ticks = (uint32_t) (TRANSLATE_CONST_SLOW * fabs(goal_x));
 
           printf("(%s) estimated rotate ticks = %d, translate ticks = %d\n",TESTENV,(int) goal_rotate_ticks, (int) goal_translate_ticks);
 
           if(timer_ticks - current_ticks < goal_rotate_ticks) {
-            MSG("openloop - rotation")
+            MSGE("openloop - rotation")
             if(goal_theta > 0) TURN_LEFT_SLOW
             else if(goal_theta < 0) TURN_RIGHT_SLOW
           } else if((timer_ticks - current_ticks >= goal_rotate_ticks) && (timer_ticks - current_ticks < goal_rotate_ticks + goal_translate_ticks)) {
-            MSG("openloop - translation")
+            MSGE("openloop - translation")
             if(goal_x < 0) TRANSLATE_LEFT
             else TRANSLATE_RIGHT
           } else {        
@@ -438,10 +441,10 @@ int main(int argc, char **argv)
           float angular_ofs = RAD2DEG(atan((zg2 - zg1) / (xg2 - xg1)));
           
           if(angular_ofs < -2.0f) {
-            MSG("feedback - rotation CW")
+            MSGE("feedback - rotation CW")
             TURN_RIGHT_SLOW
           } else if(angular_ofs > 2.0f) {
-            MSG("feedback - rotation CCW")
+            MSGE("feedback - rotation CCW")
             TURN_LEFT_SLOW
           } else {
             printf("(%s) finished alignment. angular deviation = %.4f deg\n",TESTENV, angular_ofs);
@@ -467,11 +470,11 @@ int main(int argc, char **argv)
           if(!(timer_ticks%10)) printf("(%s) X_offset = %.4f[m]\n", TESTENV, x_ofs);
 
           if(x_ofs > 0.01f) {
-            MSG("feedback - translation L")
-            TRANSLATE_LEFT
-          } else if(x_ofs < -0.01f) {
-            MSG("feedback - translation R")
+            MSGE("feedback - translation R")
             TRANSLATE_RIGHT
+          } else if(x_ofs < -0.01f) {
+            MSGE("feedback - translation L")
+            TRANSLATE_LEFT
           } else {
             machine_status = RELEASE;
             current_ticks = timer_ticks;
@@ -481,17 +484,19 @@ int main(int argc, char **argv)
 
         case RELEASE:
         {
-          uint32_t goal_front_ticks = (uint32_t) (100.0f * goal_z);
+          uint32_t goal_front_ticks = (uint32_t) (90.0f * goal_z);
 
-          printf("(%s) RELEASE : go front = %d\n", TESTENV, goal_front_ticks);
-
-          if(timer_ticks - current_ticks < goal_front_ticks) {
-            MSG("RELEASE - go front")
+          if(timer_ticks-current_ticks < goal_front_ticks) {
+            MSGE("RELEASE - go front")
+            GO_FRONT
           } else if(timer_ticks - current_ticks < 100 + goal_front_ticks) {
-            MSG("RELEASE - roller_reverse")
+            MSGE("RELEASE - roller_reverse")
+            ROLLER_REVERSE
           } else {
-            PANIC("demo_returm.cpp:397, RELEASE_BALL");
+            PANIC("RELEASE_TERMINATE : should have released 3 balls.")
           }
+
+          break; 
         }
 
         default:
