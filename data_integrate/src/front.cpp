@@ -30,7 +30,7 @@
 
 #define PORT 4000
 #define IPADDR "172.16.0.1" // myRIO ipadress
-// #define MYRIO
+#define MYRIO
 #define TESTENV "test-front"
 
 #define FRONT_CONST 100.0f

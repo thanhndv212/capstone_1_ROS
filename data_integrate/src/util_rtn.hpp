@@ -21,8 +21,11 @@
 #define ROLLER_REVERSE { data[14] = 1; }
 #define TRANSLATE_LEFT { data[16] = 1; }
 #define TRANSLATE_RIGHT { data[15] = 1; }
+#define TURN_RIGHT_SLOW { data[20] = 1; }
+#define TURN_LEFT_SLOW { data[21] = 1; }
 
-#define PANIC(msg) { std::cout << "Kernel PANIC : " << msg << std::endl; assert(0); }
+#define MSG(x) { if(!(timer_ticks%10)) std::cout << "(" << TESTENV << ") " << x << std::endl; }
+#define PANIC(msg) { std::cout << "Kernel PANIC at " << msg << std::endl; assert(0); }
 
 #define LEFTMOST 0
 #define CENTERMOST 1
@@ -39,7 +42,9 @@ enum status {
   /* Turn on roller only for this state */
   COLLECT, COLLECT2,
   /* Return to goal pos */
-  SEARCH_GREEN, APPROACH_GREEN, APPROACH_GREEN_2, RELEASE
+  SEARCH_GREEN, APPROACH_GREEN, APPROACH_GREEN_2,
+  APPROACH_GREEN_3, APPROACH_GREEN_4,
+  RELEASE
 };
 
 enum color {

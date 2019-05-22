@@ -27,7 +27,7 @@
 
 #define POLICY LEFTMOST
 #define WEBCAM
-//#define MYRIO
+#define MYRIO
 #define DISTANCE_TICKS 70
 
 #define DURATION 0.025f
@@ -41,11 +41,13 @@
 #define RELIABLE
 
 /* State of our machine = SEARCH phase by default */
-enum status machine_status = APPROACH_GREEN;
-enum status recent_status = APPROACH_GREEN;
+enum status machine_status = SEARCH_GREEN;
+enum status recent_status = SEARCH_GREEN;
 
 /* Number of balls holding */
 int ball_cnt = 0;
+
+bool use_myrio = true;
 
 #ifdef LIDAR
 /* Synchronization primitives and Lidar */
@@ -109,6 +111,9 @@ float downside_angle;
 
 bool red_phase2 = false;
 
+float goal_theta;
+float goal_x, goal_z;
+
 // CAM01 : default x_ofs = -0.013, z_ofs = 0.130
 
 /* Main routine */
@@ -116,6 +121,8 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "data_integation");
     ros::NodeHandle n;
+
+    signal(SIGSEGV, SIG_IGN);
 
     /* Argument parsing */
     int tag;
@@ -133,8 +140,8 @@ int main(int argc, char **argv)
     memset(y_offset_, 0, 6);
     memset(z_offset_, 0, 6);
     memset(downside_angle_, 0, 6);
-
-    while((tag = getopt(argc, argv, "x:y:z:d:X:Z:")) != -1) {
+    MSG("once")
+    while((tag = getopt(argc, argv, "x:y:z:d:X:Z:m:")) != -1) {
       switch(tag) {
         case 'x':
           flag |= 0x8;
@@ -163,6 +170,9 @@ int main(int argc, char **argv)
         case 'Z':
           flag |= 0x20;
           memcpy(z_offset_top_, optarg, strlen(optarg));
+          break;
+        case 'm':
+          use_myrio = false;
           break;
       }
     }
@@ -203,6 +213,8 @@ int main(int argc, char **argv)
 		dataInit();
 
     #ifdef MYRIO
+    if(use_myrio) {
+
     printf("(%s) Connecting to %s:%d\n", TESTENV, IPADDR, PORT);
     c_socket = socket(PF_INET, SOCK_STREAM, 0);
     c_addr.sin_addr.s_addr = inet_addr(IPADDR);
@@ -215,6 +227,8 @@ int main(int argc, char **argv)
       return -1;
     }
     printf("(%s) Connected to %s:%d\n", TESTENV, IPADDR, PORT);
+
+    }
     #endif
 
     printf("(%s) Entering main routine...\n", TESTENV);
@@ -239,12 +253,22 @@ int main(int argc, char **argv)
             float xpos = green_x_top[target_g_top];
             float zpos = green_z_top[target_g_top];
 
-            if(xpos > 0.2) TURN_RIGHT
-            else if(xpos < -0.2) TURN_LEFT
-            else GO_FRONT
-          
-            if(zpos <= 0.4) machine_status = APPROACH_GREEN;
-          }
+            if(xpos > 0.2){
+              TURN_RIGHT
+              if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : turn right\n", TESTENV);
+            } else if(xpos < -0.2) {
+              TURN_LEFT 
+              if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : turn_left\n", TESTENV);
+            } else {
+              GO_FRONT 
+              if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : go_front\n", TESTENV);
+            }
+
+            if(zpos <= 0.9) {
+              machine_status = APPROACH_GREEN;
+            }
+
+          } else TURN_RIGHT
 
           #else
           if(target_g < 0) { // CAM01 : invisible
@@ -279,12 +303,13 @@ int main(int argc, char **argv)
         }
         case APPROACH_GREEN:
         {
-
+          
           #ifdef RELIABLE
           switch(green_cnt) {
             case 0:
             {
-              GO_FRONT
+              TURN_RIGHT
+              if(!(timer_ticks % 10)) printf("(%s) APPROACH_GREEN : green_cnt = 0, turn right\n", TESTENV);
               break;
             }
             case 1:
@@ -292,21 +317,23 @@ int main(int argc, char **argv)
               float xg1 = green_x[0];
               float zg1 = green_z[0];
 
-              if(xg1 > 0) TURN_RIGHT
-              else if(xg1 < 0) TURN_LEFT
+              if(xg1 > 0 || 1) {
+                TURN_RIGHT
+                if(!(timer_ticks%10)) printf("(%s) APPROACH_GREEN : green_cnt = 1, turn_right\n", TESTENV);
+              } else if(xg1 < 0 && 0) {
+                TURN_LEFT
+                if(!(timer_ticks%10)) printf("(%s) APPROACH_GREEN : green_cnt = 1, turn_left\n", TESTENV);
+              }
 
               break;
             }
             case 2:
             {
+              if(!(timer_ticks%10)) printf("(%s) APPROACH_GREEN : green_cnt = 2\n", TESTENV);
               float xg1 = green_x[0];
               float xg2 = green_x[1];
               float zg1 = green_z[0];
               float zg2 = green_z[1];
-
-              assert(!std::isnan(zg1));
-              assert(!std::isnan(zg2));
-
               float degree = atan((zg2-zg1)/(xg2-xg1));
               float mid_x = 0.5 * (xg1 + xg2);
               float mid_z = 0.5 * (zg1 + zg2);
@@ -314,40 +341,87 @@ int main(int argc, char **argv)
               float mid_x_trn = mid_x * cos(degree) + mid_z * sin(degree);
               float mid_z_trn = mid_z * cos(degree) - mid_x * sin(degree);
 
-              printf("(%s) evaluate relative position\n", TESTENV);
-              printf("(%s) angle : %.3f[deg], offset : (X=%.3f, Z=%.3f)\n", TESTENV, degree, mid_x_trn, mid_z_trn);
+              if(mid_x >= 0.2f) {
+                if(!(timer_ticks%10)) printf("(%s) midpoint_x = %.3f : turn_right\n", TESTENV, mid_x);
+                TURN_RIGHT
+              } else if(mid_x <= -0.2f) {
+                TURN_LEFT
+                if(!(timer_ticks%10)) printf("(%s) midpoint_x = %.3f : turn_right\n", TESTENV, mid_x);
+              } else {
+              if(closest_ball(GREEN) >= 0.4 && !(timer_ticks %10)) printf("(%s) closest_green_z = %.3f : go_front\n", TESTENV, green_z[closest_ball(GREEN)]);
+               GO_FRONT
+              }
 
-              machine_status = APPROACH_GREEN_2;
+              int target = closest_ball(GREEN);
+              float t_z = green_z[target];
+              
+              
+              if(t_z <= 0.2f && (abs((green_x[0])<= 0.25 && abs((green_x[1])<=0.25) ))) {
+                float xg1_ = green_x[0];
+                float xg2_ = green_x[1];
+                float zg1_ = green_z[0];
+                float zg2_ = green_z[1];
+
+                float degree_ = atan((zg2-zg1)/(xg2-xg1));
+                float mid_x_ = 0.5 * (xg1 + xg2);
+                float mid_z_ = 0.5 * (zg1 + zg2);
+
+                float mid_x_trn_ = mid_x * cos(degree_) + mid_z * sin(degree_);
+                float mid_z_trn_ = mid_z * cos(degree_) - mid_x * sin(degree_);
+
+                goal_theta = RAD2DEG(degree_);
+                goal_x = mid_x_trn_;
+                goal_z = mid_z_trn_;
+
+                printf("(%s) angular offset = %.3f deg, x_ofs = %.3f, z_ofs = %.3f\n", TESTENV, RAD2DEG(degree_), mid_x_trn_, mid_z_trn_);
+                
+                machine_status = APPROACH_GREEN_2;
+                current_ticks = timer_ticks;
+              }
+              break;
+            }
+            default:
+            {
+              break;
+              printf("(%s) FAIL : there are %d green balls\n",TESTENV, green_cnt);
+              assert(green_cnt <= 2); 
               break;
             }
 
           }
-          #else
-          int lgi = leftmost_green();
-
-          float zpos_l = green_z[lgi];
-          float zpos_r = green_z[1-lgi];
-
-          if(zpos_l <= ALIGN_THRESH * zpos_r) {
-            TURN_RIGHT
-          } else if(zpos_l >= ALIGN_THRESH * zpos_r) {
-            TURN_LEFT
-          } else {
-            machine_status = APPROACH_GREEN_2;
-          }        
-          #endif
+         #endif
  
           break;
         }
         case APPROACH_GREEN_2:
         {
-          PANIC("NotImplementedError at APPROACH_GREEN_2 : undefined reference to TRANSLATE_LEFT");
+          uint32_t goal_rotate_ticks = (uint32_t) (0.713f * fabs(goal_theta));
+
+          printf("(%s) estimated rotate ticks = %d\n",TESTENV, goal_rotate_ticks);
+
+          if(timer_ticks - current_ticks < goal_rotate_ticks) {
+            if(goal_theta > 0) TURN_LEFT
+            else if(goal_theta < 0) TURN_RIGHT
+          } else {
+            printf("(%s) aligned %.3f degrees\n",TESTENV, goal_theta);
+            machine_status = RELEASE;
+            current_ticks = timer_ticks;
+          }
           break;
         }
 
         case RELEASE:
         {
-          PANIC("NotImplementedError at SEARCH_RELEASE");
+          uint32_t goal_translate_ticks = (uint32_t) (150.0f * fabs(goal_x));
+
+          printf("(%s) estimated translate_x ticks = %d\n", TESTENV, goal_translate_ticks);
+
+          if(timer_ticks - current_ticks < goal_translate_ticks) {
+            if(goal_x < 0) TRANSLATE_LEFT
+            else TRANSLATE_RIGHT
+          } else {
+            PANIC("demo_returm.cpp:397, RELEASE_BALL");
+          }
         }
 
         default:
@@ -359,9 +433,11 @@ int main(int argc, char **argv)
       /* Send control data */
 
       #ifdef MYRIO
+      if(use_myrio) {
       size_t written = write(c_socket, data, sizeof(data));
       if(DEBUG)
         printf("%d bytes written\n", (int) written);
+      }
       #endif
 
 	    ros::Duration(DURATION).sleep();
@@ -410,7 +486,6 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     red_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
     red_z[i] = z_pos - z_offset;
   }
-
   int g_cnt = position->size_g;
   green_cnt = position->size_g;
 
@@ -617,6 +692,19 @@ int closest_ball(enum color ball_color) {
 
         return result_idx;
       break;
+    }
+    case GREEN:
+    {
+      int result_idx = 0;
+      
+      float front_dist = green_z[0];
+      for(int i=0; i<green_cnt; i++) {
+        if(green_z[i] <= front_dist) {
+          front_dist = green_z[i];
+          result_idx = i;
+        }
+      }
+      return result_idx;
     }
     default:
       { return -1; }

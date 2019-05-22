@@ -30,7 +30,7 @@
 
 #define PORT 4000
 #define IPADDR "172.16.0.1" // myRIO ipadress
-// #define MYRIO
+#define MYRIO
 #define TESTENV "test-rotate"
 
 #define ROTATE_CONST 0.7333f

@@ -49,7 +49,7 @@ target_link_libraries(demo_simple
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
 
-add_executable(demo_return src/demo_return.cpp)
+add_executable(demo_return src/demo_return2.cpp)
 add_dependencies(demo_return core_msgs_generate_messages_cpp)
 target_link_libraries(demo_return
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
