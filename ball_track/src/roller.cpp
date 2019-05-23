@@ -20,12 +20,6 @@ using namespace cv;
 int low_h_b=90, low_s_b=00, low_v_b=40;
 int high_h_b=120, high_s_b=255, high_v_b=255;
 
-void on_low_h_thresh_trackbar_blue(int, void *);
-void on_high_h_thresh_trackbar_blue(int, void *);
-void on_low_s_thresh_trackbar_blue(int, void *);
-void on_high_s_thresh_trackbar_blue(int, void *);
-void on_low_v_thresh_trackbar_blue(int, void *);
-void on_high_v_thresh_trackbar_blue(int, void *);
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
 string intToString(int n);
 string floatToString(float f);
@@ -69,6 +63,8 @@ void sigint_handler(int sig){
 // Here, we start our main function.
 int main(int argc, char **argv)
 {
+    int idx = (argc == 1)? INDEX_DEFAULT : (atoi(argv[1]));
+
     signal(SIGINT, sigint_handler);
 
     ros::init(argc, argv, "ball_detect_node"); //init ros nodd
@@ -92,31 +88,10 @@ int main(int argc, char **argv)
     vector<Vec4i> hierarchy_b;
 
     vector<vector<Point> > contours_b;
+VideoCapture cap(idx);
 
-    // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
-    VideoCapture cap(0);
-    namedWindow("Video Capture", WINDOW_NORMAL);
-    namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
-    namedWindow("Canny Edge for Blue Ball", WINDOW_NORMAL);
     namedWindow("Result", WINDOW_NORMAL);
-
-    moveWindow("Video Capture",              50, 0);
-    moveWindow("Object Detection_HSV_Blue",470,370);
-    moveWindow("Canny Edge for Blue Ball", 470,730);
     moveWindow("Result", 470, 0);
-
-
-
-// Trackbars to set thresholds for HSV values : Red ball: In this part, we set the thresholds, in HSV color space values, for the red ball's trackbar. Since the red color has empty space in between, we need two sets of H values fro red ball.
-    // Trackbars to set thresholds for HSV values : Blue ball: In this part, we set the thresholds, in HSV color space, for the blue ball's trackbar.
-    createTrackbar("Low H","Object Detection_HSV_Blue", &low_h_b, 180, on_low_h_thresh_trackbar_blue);
-    createTrackbar("High H","Object Detection_HSV_Blue", &high_h_b, 180, on_high_h_thresh_trackbar_blue);
-    createTrackbar("Low S","Object Detection_HSV_Blue", &low_s_b, 255, on_low_s_thresh_trackbar_blue);
-    createTrackbar("High S","Object Detection_HSV_Blue", &high_s_b, 255, on_high_s_thresh_trackbar_blue);
-    createTrackbar("Low V","Object Detection_HSV_Blue", &low_v_b, 255, on_low_v_thresh_trackbar_blue);
-    createTrackbar("High V","Object Detection_HSV_Blue", &high_v_b, 255, on_high_v_thresh_trackbar_blue);
-
-    createTrackbar("Min Threshold:","Canny Edge for Blue Ball", &lowThreshold_b, 100, on_canny_edge_trackbar_blue);
 
     while((char)waitKey(1)!='q'){
     cap>>frame;
@@ -208,9 +183,6 @@ for( size_t i = 0; i< contours_b.size(); i++ ){
 msg.size_b = num;
     pub.publish(msg);
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
-    imshow("Video Capture",calibrated_frame);
-    imshow("Object Detection_HSV_Blue",hsv_frame_blue);
-    imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
     imshow("Result", result);
 
 
@@ -239,25 +211,4 @@ void morphOps(Mat &thresh){//create structuring element that will be used to "di
     erode(thresh,thresh,erodeElement);
     dilate(thresh,thresh,dilateElement);
     dilate(thresh,thresh,dilateElement);
-}
-// Trackbar for image threshodling in HSV colorspace : Blue : The functions had been declared and created, and now they are positioned in the relevant result frames. In this case, in the blue ball's frames.
-void on_low_h_thresh_trackbar_blue(int, void *){low_h_b = min(high_h_b-1, low_h_b);
-    setTrackbarPos("Low H","Object Detection_HSV_Blue", low_h_b);
-}
-void on_high_h_thresh_trackbar_blue(int, void *){high_h_b = max(high_h_b, low_h_b+1);
-    setTrackbarPos("High H", "Object Detection_HSV_Blue", high_h_b);
-}
-void on_low_s_thresh_trackbar_blue(int, void *){low_s_b = min(high_s_b-1, low_s_b);
-    setTrackbarPos("Low S","Object Detection_HSV_Blue", low_s_b);
-}
-void on_high_s_thresh_trackbar_blue(int, void *){high_s_b = max(high_s_b, low_s_b+1);
-    setTrackbarPos("High S", "Object Detection_HSV_Blue", high_s_b);
-}
-void on_low_v_thresh_trackbar_blue(int, void *){low_v_b= min(high_v_b-1, low_v_b);
-    setTrackbarPos("Low V","Object Detection_HSV_Blue", low_v_b);
-}
-void on_high_v_thresh_trackbar_blue(int, void *){high_v_b = max(high_v_b, low_v_b+1);
-    setTrackbarPos("High V", "Object Detection_HSV_Blue", high_v_b);
-}
-void on_canny_edge_trackbar_blue(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Blue Ball", lowThreshold_b);
 }
