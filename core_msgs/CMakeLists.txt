@@ -12,6 +12,7 @@ add_message_files( DIRECTORY msg
   FILES
   ball_position.msg
   ball_position_top.msg
+  roller_num.msg
 
   multiarray.msg
   markermsg.msg
