@@ -259,6 +259,7 @@ for( size_t i = 0; i< contours_r.size(); i++ ){
             string sz = floatToString(isz);
             float dis = ball_position_g[2];
             float pixel = 0.0002*pow(radius_g[i],2)-0.0362*radius_g[i]+1.766;
+	if ( (pixel - dis) <0.5){
             ball_g_x.push_back(isx);
             ball_g_y.push_back(isy);
             ball_g_z.push_back(isz);
@@ -273,7 +274,7 @@ for( size_t i = 0; i< contours_r.size(); i++ ){
             putText(result, text, center_g[i],2,1,Scalar(0,255,0),2);
             circle( result, center_g[i], (int)radius_g[i], color, 2, 8, 0 );
             if (abs(l)>diff)i++;}
-
+						}
         }
 
 msg.size_b = count_b;
