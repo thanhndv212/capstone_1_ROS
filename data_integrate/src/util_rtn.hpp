@@ -1,3 +1,8 @@
+#include "core_msgs/ball_position.h"
+#include "core_msgs/ball_position_top.h"
+#include "core_msgs/roller_num.h"
+#include "lidar/coor.h"
+
 #ifndef UTIL_H
 #define UTIL_H
 
@@ -37,13 +42,17 @@ static uint32_t current_ticks = 0;
 
 /* State variable declaration */
 enum status {
+  /* Initialize */
+  INIT,
+
   /* Moving around */
   SEARCH, APPROACH, RED_AVOIDANCE,
   /* Turn on roller only for this state */
   COLLECT, COLLECT2,
   /* Return to goal pos */
+  LIDAR_RETURN,
   SEARCH_GREEN, APPROACH_GREEN, APPROACH_GREEN_2,
-  APPROACH_GREEN_3, APPROACH_GREEN_4,
+  APPROACH_GREEN_3, APPROACH_GREEN_4, APPROACH_GREEN_5,
   RELEASE
 };
 
@@ -58,9 +67,10 @@ enum actions {
 /* Function prototypes */
 void dataInit();
 void find_ball();
-void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan);
+void lidar_Callback(const lidar::coor::ConstPtr& scan);
 void camera_Callback(const core_msgs::ball_position::ConstPtr& position);
-void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position);
+void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position);
+void camera_Callback_counter(const core_msgs::roller_num::ConstPtr& cnt);
 
 bool red_in_range();
 bool ball_in_range(enum color ball_color);
@@ -73,9 +83,12 @@ int closest_green();
 
 int target_blue(int policy);
 
-const std::string cond[] = { "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "COLLECT2", "SEARCH_GREEN", "APPROACH_GREEN", "APPROACH_GREEN_2", "APPROACH_GREEN_3", "APPROACH_GREEN_4", "RELEASE" };
+int leftmost_blue();
+int centermost_blue();
+int leftmost_blue_top();
+const std::string cond[] = {"INIT", "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "COLLECT2", "LIDAR_RETURN", "SEARCH_GREEN", "APPROACH_GREEN", "APPROACH_GREEN_2", "APPROACH_GREEN_3", "APPROACH_GREEN_4", "APPROACH_GREEN_5" , "RELEASE" };
 
-
+int furthest_green();
 
 
 #endif

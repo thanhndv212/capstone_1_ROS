@@ -16,7 +16,6 @@
 #include <ros/ros.h>
 #include <ros/package.h>
 
-#include "core_msgs/ball_position.h"
 #include "ros/ros.h"
 #include "sensor_msgs/LaserScan.h"
 #include "std_msgs/Int8.h"
@@ -34,14 +33,15 @@
 #define COLLECT_THRESH_FRONT 0.1f
 #define DISTANCE_TICKS_CL 55
 
-#define ROTATE_CONST_SLOW 1.1f
-#define TRANSLATE_CONST_SLOW 200.0f
+#define ROTATE_CONST_SLOW 1.0f
+#define TRANSLATE_CONST_SLOW 210.0f
 
 #define ALIGN_THRESH 0.95f
 
 #define TESTENV "demo-return"
 
 #define RELIABLE
+#define UNRELIABLE
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH_GREEN;
@@ -52,18 +52,6 @@ int ball_cnt = 0;
 
 bool use_myrio = true;
 
-#ifdef LIDAR
-/* Synchronization primitives and Lidar */
-boost::mutex map_mutex;
-
-int lidar_size;
-float lidar_degree[400];
-float lidar_distance[400];
-float lidar_obs;
-
-int near_ball;
-int action;
-#endif
 
 #ifdef WEBCAM
 /* Blue balls */
@@ -210,7 +198,7 @@ int main(int argc, char **argv)
 
     #ifdef WEBCAM
     ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
-    ros::Subscriber sub2 = n.subscribe<core_msgs::ball_position>("/position_top", 1000, camera_Callback_top);
+    ros::Subscriber sub2 = n.subscribe<core_msgs::ball_position_top>("/position_top", 1000, camera_Callback_top);
     #endif
 
 		dataInit();
@@ -251,7 +239,6 @@ int main(int argc, char **argv)
           int target_g = leftmost_green();
           int target_g_top = leftmost_green_top();
 
-          #ifdef RELIABLE
           if(target_g_top >= 0) {
             float xpos = green_x_top[target_g_top];
             float zpos = green_z_top[target_g_top];
@@ -267,47 +254,16 @@ int main(int argc, char **argv)
               if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : go_front\n", TESTENV);
             }
 
-            if(zpos <= 0.9) {
+            if(zpos <= 0.54) {
               machine_status = APPROACH_GREEN;
             }
 
           } else TURN_RIGHT
-
-          #else
-          if(target_g < 0) { // CAM01 : invisible
-            if(target_g_top >= 0) {   // CAM02 : visible
-              float xpos = green_x_top[target_g_top];
-              float zpos = green_z_top[target_g_top];
-
-              if(xpos > 0.2) {
-                TURN_RIGHT
-              } else if(xpos < -0.2) {
-                TURN_LEFT
-              } else {
-                GO_FRONT
-              }
-            } else {        // CAM02 : invisible
-              TURN_RIGHT
-            }
-          } else {  // CAM01 : visible
-            if(green_cnt == 1) {
-              float xpos_g = green_x[target_g];
-
-              if(xpos_g > 0) TURN_LEFT
-              else TURN_RIGHT
- 
-            } else if(green_cnt > 1) {
-              machine_status = APPROACH_GREEN;
-            }
-          }
-          #endif
             
           break;
         }
         case APPROACH_GREEN:
         {
-          
-          #ifdef RELIABLE
           switch(green_cnt) {
             case 0:
             {
@@ -378,7 +334,6 @@ int main(int argc, char **argv)
               int target = closest_ball(GREEN);
               float t_z = green_z[target];
               
-              
              break;
             }
             default:
@@ -390,7 +345,6 @@ int main(int argc, char **argv)
             }
 
           }
-         #endif
  
           break;
         }
@@ -429,16 +383,24 @@ int main(int argc, char **argv)
          */
         case APPROACH_GREEN_3:
         {
-          #ifndef RELIABLE
-          assert(green_cnt == 2);
-          #endif
+          #ifdef UNRELIABLE
+          int idx_close = closest_ball(GREEN);
+          int idx_far = furthest_green();
 
+          float xg1 = green_x[idx_close];
+          float zg1 = green_z[idx_close];
+          float xg2 = green_x[idx_far];
+          float zg2 = green_z[idx_far];
+          #else
           float xg1 = green_x[0];
           float zg1 = green_z[0];
           float xg2 = green_x[1];
           float zg2 = green_z[1];
+          #endif
 
           float angular_ofs = RAD2DEG(atan((zg2 - zg1) / (xg2 - xg1)));
+
+          if(!(timer_ticks%10)) printf("(%s) angle = %.4f\n", TESTENV, angular_ofs);
           
           if(angular_ofs < -2.0f) {
             MSGE("feedback - rotation CW")
@@ -456,14 +418,20 @@ int main(int argc, char **argv)
 
         case APPROACH_GREEN_4:
         {
-          #ifndef RELIABLE
-          assert(green_cnt == 2);
-          #endif
+          #ifdef UNRELIABLE
+          int idx_close = closest_ball(GREEN);
+          int idx_far = furthest_green();
 
+          float xg1 = green_x[idx_close];
+          float zg1 = green_z[idx_close];
+          float xg2 = green_x[idx_far];
+          float zg2 = green_z[idx_far];
+          #else
           float xg1 = green_x[0];
           float xg2 = green_x[1];
           float zg1 = green_z[0];
           float zg2 = green_z[1];
+          #endif
 
           float x_ofs = 0.5f * (xg1 + xg2);
 
@@ -476,11 +444,35 @@ int main(int argc, char **argv)
             MSGE("feedback - translation L")
             TRANSLATE_LEFT
           } else {
+            #ifndef UNRELIABLE
             machine_status = RELEASE;
             current_ticks = timer_ticks;
+            #else
+            machine_status = APPROACH_GREEN_5;
+            #endif
           }
           break;
         }
+
+        #ifdef UNRELIABLE
+        case APPROACH_GREEN_5:
+        {
+          MSGE("APPROACH_GREEN - 5 : Control over UNRELIABLE actuator")
+
+          float xg1 = green_x[0];
+          float xg2 = green_x[1];
+          float zg1 = green_z[0];
+          float zg2 = green_z[1];
+
+          float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1)));
+
+          if(theta < -1.5f) TURN_RIGHT_SLOW
+          else if(theta > 1.5f) TURN_LEFT_SLOW
+          else { machine_status = RELEASE; }
+          
+          break;
+        }  
+        #endif
 
         case RELEASE:
         {
@@ -576,7 +568,7 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 }
 
 /* callback 2 */
-void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position)
+void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
 {
   /* Step 1. Fetch data from message */
   int b_cnt_top = position->size_b;
@@ -620,18 +612,13 @@ void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position)
     green_x_top[i] = x_pos - x_offset;
     green_z_top[i] = z_pos - z_offset;
   }
-
-
-
 }
-/* callback 2 end*/
-
+#endif
 
 bool ball_in_range(enum color ball_color) {
 
   if(ball_color == BLUE) {
     for(int i=0; i<blue_cnt; i++) {
-      //printf("blue[%d] = (%.2f, %.2f)\n", i, blue_x[i], blue_z[i]);
       if(fabs(blue_x[i])<=0.034 && blue_z[i] <= 0.3)
         return true;
     }
@@ -785,7 +772,28 @@ int closest_ball(enum color ball_color) {
       { return -1; }
   }
 }
-#endif
+
+/*
+ * furthest_green()
+ * Traverse through green_z
+ * returns INDEX of maximum dist Z
+ *
+ * This is redundant, but is implemented as senitel
+ */
+
+int furthest_green() {
+  int result_idx = 0;
+
+  float front_dist = green_z[0];
+  for(int i=0; i<green_cnt; i++) {
+    if(green_z[i] >= front_dist) {
+      front_dist = green_z[i];
+      result_idx = i;
+    }
+  }
+  return result_idx;
+}
+
 
 void dataInit()
 {
@@ -816,34 +824,3 @@ void dataInit()
 }
 
 
-#ifdef NOT_REACHED
-
-// LIDAR is UNUSED for this project
-void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan)
-  {
-  		map_mutex.lock();
-
-     int count = scan->scan_time / scan->time_increment;
-     lidar_size=count;
-     for(int i = 0; i < count; i++)
-     {
-         lidar_degree[i] = RAD2DEG(scan->angle_min + scan->angle_increment * i);
-         lidar_distance[i]=scan->ranges[i];
-     }
-  		map_mutex.unlock();
-  }
-
-
-  /* Checks for data subscription */
-	  for(int i = 0; i < lidar_size; i++)
-    {
-	    std::cout << "degree : "<< lidar_degree[i];
-	    std::cout << "   distance : "<< lidar_distance[i]<<std::endl;
-	  }
-		for(int i = 0; i < ball_number; i++)
-		{
-			std::cout << "ball_X : "<< ball_X[i];
-			std::cout << "ball_Y : "<< ball_Y[i]<<std::endl;
-		}
-
-#endif

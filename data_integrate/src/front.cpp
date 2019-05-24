@@ -41,6 +41,7 @@
 #define DEBUG 0 
 #define PERIOD 40
 
+#define TRANSLATE_LEFT { data[15] = 1; }
 #define GO_FRONT { data[0] = -0.17f; data[1] = 1; data[2] = 1.75f; data[3] = 1;  }
 #define GO_BACK { data[0] = -0.06f; data[1] = -1; data[2] = -1.64f; data[3] = 1;  }
 #define TURN_RIGHT { data[0] = 1; data[1] = -0.17f; data[2] = -0.17f; data[3] = 1; }
@@ -173,7 +174,7 @@ int main(int argc, char **argv)
       dataInit();
 
       if(timer_ticks <= (int) (dist_arg * FRONT_CONST)) {
-        TURN_RIGHT      
+        TRANSLATE_LEFT      
       } else {
         printf("(%s) finished. should have proceeded %.3f meters(%d timer ticks)\n", TESTENV, dist_arg, timer_ticks);
         break;

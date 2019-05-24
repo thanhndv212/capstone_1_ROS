@@ -17,18 +17,20 @@
 #include <ros/package.h>
 
 #include "core_msgs/ball_position.h"
+#include "core_msgs/roller_num.h"
 #include "ros/ros.h"
 #include "sensor_msgs/LaserScan.h"
 #include "std_msgs/Int8.h"
 #include "std_msgs/String.h"
 
 #include "opencv2/opencv.hpp"
-#include "util.hpp"
+#include "util_rtn.hpp"
 
 #define POLICY LEFTMOST
 #define WEBCAM
 #define MYRIO
 #define DISTANCE_TICKS 65
+#define TIMEOUT_TICKS 1400  // 35sec
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
@@ -37,8 +39,8 @@
 #define TESTENV "demo-simple"
 
 /* State of our machine = SEARCH phase by default */
-enum status machine_status = SEARCH;
-enum status recent_status = SEARCH;
+enum status machine_status = INIT;
+enum status recent_status = INIT;
 
 /* Number of balls holding */
 int ball_cnt = 0;
@@ -92,6 +94,9 @@ float green_x_top[20];
 float green_y_top[20];
 float green_z_top[20];
 
+/* CAM03 */
+size_t dupACKcnt = 0;
+
 #endif
 
 int c_socket, s_socket;
@@ -104,6 +109,7 @@ float x_offset, y_offset, z_offset, x_offset_top, z_offset_top;
 float downside_angle;
 
 bool red_phase2 = false;
+int timeout = 60;
 
 void sigsegv_handler(int sig) {
   printf("(%s) program received SIGSEGV, Segmentation Fault. Ignoring\n", TESTENV);
@@ -131,6 +137,7 @@ int main(int argc, char **argv)
     char x_offset_top_[5];
     char z_offset_top_[5];
     char downside_angle_[6];
+    char timeout_str[6];
 
     int flag = 0;
 
@@ -139,27 +146,15 @@ int main(int argc, char **argv)
     memset(z_offset_, 0, 6);
     memset(downside_angle_, 0, 6);
 
-    while((tag = getopt(argc, argv, "x:y:z:d:X:Z:m:")) != -1) {
+    while((tag = getopt(argc, argv, "x:z:X:Z:mT:")) != -1) {
       switch(tag) {
         case 'x':
           flag |= 0x8;
           memcpy(x_offset_, optarg, strlen(optarg));
           break;
-        case 'y':
-          flag |= 0x4;
-          memcpy(y_offset_, optarg, strlen(optarg));
-          break;
         case 'z':
           flag |= 0x2;
           memcpy(z_offset_, optarg, strlen(optarg));
-          break;
-        case 'd':
-          flag |= 0x1;
-          if(strlen(optarg) > 6) {
-            printf("Invalid characters or too large angle value. Please try smaller values\n");
-            return -1;
-          }
-          memcpy(downside_angle_, optarg, strlen(optarg));
           break;
         case 'X':
           flag |= 0x10;
@@ -172,32 +167,28 @@ int main(int argc, char **argv)
         case 'm':
           use_myrio = false;
           break;
+        case 'T':
+          flag |= 0x40;
+          memcpy(timeout_str, optarg, strlen(optarg));
+          break;
       }
     }
 
-    if(!flag) {
-      printf("[Usage] \n");
-      printf("rosrun data_integrate demo_simple -x <X-offset> -y <Y-offset> -z <Z-offset> -d <camera angle>\n");
-      return -1;
-    }
-
-    if(!(flag & 0x1) && 0) {
-      printf("Missing -d option : downside angle necessary!\n");
-      return -1;
-    }
-
     x_offset = atof(x_offset_);
-    y_offset = atof(y_offset_);
     z_offset = atof(z_offset_);
-
     x_offset_top = atof(x_offset_top_);
     z_offset_top = atof(z_offset_top_);
+    timeout = atoi(timeout_str);
 
-    downside_angle = RAD(atof(downside_angle_));
+    if(!(flag & 0x8)) x_offset = 0.0002f;
+    if(!(flag & 0x2)) z_offset = 0.13f;
+    if(!(flag & 0x10)) x_offset_top = 0;
+    if(!(flag & 0x20)) z_offset_top = 0;
+    if(!(flag & 0x40)) timeout = 60;
+
 
     printf("(%s) start\n", TESTENV);
     printf("(%s) camera offset : x=%.3f, y=%.3f, z=%.3f [m]\n", TESTENV, x_offset, y_offset, z_offset);
-    printf("(%s) downside angle : %.2f [deg] \n", TESTENV, RAD2DEG(downside_angle));
 
     #ifdef LIDAR
       ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, lidar_Callback);
@@ -205,7 +196,8 @@ int main(int argc, char **argv)
 
     #ifdef WEBCAM
     ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
-    ros::Subscriber sub2 = n.subscribe<core_msgs::ball_position>("/position_top", 1000, camera_Callback_top);
+    ros::Subscriber sub2 = n.subscribe<core_msgs::ball_position_top>("/position_top", 1000, camera_Callback_top);
+    ros::Subscriber sub3 = n.subscribe<core_msgs::roller_num>("/roller_num",1000, camera_Callback_counter);
     #endif
 
 		dataInit();
@@ -223,12 +215,14 @@ int main(int argc, char **argv)
       close(c_socket);
       return -1;
     }
-    }
     printf("(%s) Connected to %s:%d\n", TESTENV, IPADDR, PORT);
+    }
     #endif
 
     printf("(%s) Entering main routine...\n", TESTENV);
-    printf("(%s) state = SEARCH\n", TESTENV);
+    printf("(%s) state = INIT\n", TESTENV);
+
+    current_ticks = timer_ticks;
 
     while(ros::ok){
       dataInit();
@@ -238,11 +232,21 @@ int main(int argc, char **argv)
 
       /* switching between states */
       switch(machine_status) {
+        case INIT:
+        {
+          MSGE("go front 2m first")
+          GO_FRONT
+
+          /* Initiate SEARCH */          
+          if(timer_ticks - current_ticks >= 200)
+            machine_status = SEARCH;
+          
+          break;
+        }
         case SEARCH:
         {
           int target_b = leftmost_blue();
           int target_b_top = leftmost_blue_top();
-
 
           if(target_b < 0) {
             if(target_b_top >= 0) {
@@ -282,9 +286,7 @@ int main(int argc, char **argv)
               red_phase2 = false;
               machine_status = RED_AVOIDANCE;
             }
-            // current_ticks = timer_ticks;
           } 
-
 
           break;
         }
@@ -322,9 +324,9 @@ int main(int argc, char **argv)
             float zpos = blue_z[target];
 
             if(xpos > 0.013) {
-              TURN_RIGHT ROLLER_ON //printf("col-R\n");
+              TURN_RIGHT_SLOW ROLLER_ON //printf("col-R\n");
             } else if(xpos < -0.013) {
-              TURN_LEFT ROLLER_ON //printf("col-L\n");
+              TURN_LEFT_SLOW ROLLER_ON //printf("col-L\n");
             } else {
               current_ticks = timer_ticks;
               machine_status = COLLECT2;
@@ -435,7 +437,7 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 }
 
 /* callback 2 */
-void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position)
+void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
 {
   /* Step 1. Fetch data from message */
   int b_cnt_top = position->size_b;
@@ -479,11 +481,23 @@ void camera_Callback_top(const core_msgs::ball_position::ConstPtr& position)
     green_x_top[i] = x_pos - x_offset;
     green_z_top[i] = z_pos - z_offset;
   }
+}
 
+void camera_Callback_counter(const core_msgs::roller_num::ConstPtr& cnt)
+{
+  int shift = cnt->size_b;
 
+  if(shift) {
+    printf("(%s) dupACKcnt = %d\n", TESTENV, (int) ++dupACKcnt);
+    if(dupACKcnt > 3) {  // 3 Duplicate ACK
+      if(machine_status == SEARCH)
+        machine_status = SEARCH_GREEN;
+    }
+  }
+  else
+    dupACKcnt = 0;
 
 }
-/* callback 2 end*/
 
 
 bool ball_in_range(enum color ball_color) {
@@ -659,77 +673,3 @@ void dataInit()
 	data[22] = 0; //GamepadButtonDown(_dev, BUTTON_LEFT_THUMB);
 	data[23] = 0; //GamepadButtonDown(_dev, BUTTON_RIGHT_THUMB);
 }
-
-
-#ifdef NOT_REACHED
-
-// LIDAR is UNUSED for this project
-void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan)
-  {
-  		map_mutex.lock();
-
-     int count = scan->scan_time / scan->time_increment;
-     lidar_size=count;
-     for(int i = 0; i < count; i++)
-     {
-         lidar_degree[i] = RAD2DEG(scan->angle_min + scan->angle_increment * i);
-         lidar_distance[i]=scan->ranges[i];
-     }
-  		map_mutex.unlock();
-  }
-
-
-  /* Checks for data subscription */
-	  for(int i = 0; i < lidar_size; i++)
-    {
-	    std::cout << "degree : "<< lidar_degree[i];
-	    std::cout << "   distance : "<< lidar_distance[i]<<std::endl;
-	  }
-		for(int i = 0; i < ball_number; i++)
-		{
-			std::cout << "ball_X : "<< ball_X[i];
-			std::cout << "ball_Y : "<< ball_Y[i]<<std::endl;
-		}
-
-  /* Sample code */
-		////////////////////////////////////////////////////////////////
-		// // 자율 주행을 예제 코드 (ctrl + /)을 눌러 주석을 추가/제거할수 있다.///
-		// ////////////////////////////////////////////////////////////////
-		// dataInit();
-		// for(int i = 0; i < lidar_size-1; i++)
-		// 	    {
-		// 		if(lidar_distance[i]<lidar_distance[i+1]){lidar_obs=i;}
-		// 		else if(lidar_distance[i]==lidar_distance[i+1]){lidar_obs=i;}
-		// 		else {lidar_obs=i+1;}
-		// 	    }
-		// if(ball_number==0 || lidar_obs<0.3)
-		// {
-		// 		find_ball();
-		// }
-		// else
-		// {
-		// 	for(int i = 0; i < ball_number-1; i++)
-		// 	    {
-		// 		if(ball_distance[i]<ball_distance[i+1]){near_ball=i;}
-		// 		else if(ball_distance[i]==ball_distance[i+1]){near_ball=i;}
-		// 		else {near_ball=i+1;}
-		// 	    }
-		// 	if(ball_distance[near_ball]<0.1){data[4]=0; data[5]=0; data[21]=0;}
-		// 	else
-		// 	{
-		// 		data[20]=1;
-		// 		if(ball_X[near_ball]>0){data[4]=1;}  else{data[4]=-1;}
-		// 		if(ball_Y[near_ball]>0){data[5]=1;}  else{data[5]=-1;}
-		// 	}
-		// }
-
-		//자율 주행 알고리즘에 입력된 제어데이터(xbox 컨트롤러 데이터)를 myRIO에 송신(tcp/ip 통신)
-	      // for (int i = 0; i < 24; i++){
-	      // printf("%f ",data[i]);
-				//
-	      // }
-	      // printf("\n");
-			// printf("%d\n",action);
-
-
-#endif

@@ -177,12 +177,6 @@ int main(int argc, char **argv)
       }
     }
 
-    if(!flag) {
-      printf("[Usage] \n");
-      printf("rosrun data_integrate demo_simple -x <X-offset> -y <Y-offset> -z <Z-offset> -d <camera angle>\n");
-      return -1;
-    }
-
     if(!(flag & 0x1) && 0) {
       printf("Missing -d option : downside angle necessary!\n");
       return -1;
@@ -739,36 +733,3 @@ void dataInit()
 	data[22] = 0; //GamepadButtonDown(_dev, BUTTON_LEFT_THUMB);
 	data[23] = 0; //GamepadButtonDown(_dev, BUTTON_RIGHT_THUMB);
 }
-
-
-#ifdef NOT_REACHED
-
-// LIDAR is UNUSED for this project
-void lidar_Callback(const sensor_msgs::LaserScan::ConstPtr& scan)
-  {
-  		map_mutex.lock();
-
-     int count = scan->scan_time / scan->time_increment;
-     lidar_size=count;
-     for(int i = 0; i < count; i++)
-     {
-         lidar_degree[i] = RAD2DEG(scan->angle_min + scan->angle_increment * i);
-         lidar_distance[i]=scan->ranges[i];
-     }
-  		map_mutex.unlock();
-  }
-
-
-  /* Checks for data subscription */
-	  for(int i = 0; i < lidar_size; i++)
-    {
-	    std::cout << "degree : "<< lidar_degree[i];
-	    std::cout << "   distance : "<< lidar_distance[i]<<std::endl;
-	  }
-		for(int i = 0; i < ball_number; i++)
-		{
-			std::cout << "ball_X : "<< ball_X[i];
-			std::cout << "ball_Y : "<< ball_Y[i]<<std::endl;
-		}
-
-#endif
