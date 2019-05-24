@@ -41,7 +41,7 @@ add_executable(ball_track_top_node src/main_top.cpp)
 add_executable(ball_roller_node src/roller.cpp)
 add_dependencies(ball_track_node core_msgs_generate_messages_cpp)
 add_dependencies(ball_track_top_node core_msgs_generate_messages_cpp)
-add_dependencies(ball_track_roller_node core_msgs_generate_messages_cpp)
+add_dependencies(ball_roller_node core_msgs_generate_messages_cpp)
 
 target_link_libraries(ball_track_node
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}

@@ -9,6 +9,7 @@
 #include "core_msgs/roller_num.h"
 #include <cv_bridge/cv_bridge.h>
 
+#define INDEX_DEFAULT 1
 
 
 using namespace std;
@@ -67,7 +68,7 @@ int main(int argc, char **argv)
 
     signal(SIGINT, sigint_handler);
 
-    ros::init(argc, argv, "ball_detect_node"); //init ros nodd
+    ros::init(argc, argv, "ball_counter"); //init ros nodd
     ros::NodeHandle nh; //create node handler
     pub = nh.advertise<core_msgs::roller_num>("/roller_num", 100); //setting publisher
 
@@ -88,7 +89,7 @@ int main(int argc, char **argv)
     vector<Vec4i> hierarchy_b;
 
     vector<vector<Point> > contours_b;
-VideoCapture cap(idx);
+    VideoCapture cap(idx);
 
     namedWindow("Result", WINDOW_NORMAL);
     moveWindow("Result", 470, 0);
