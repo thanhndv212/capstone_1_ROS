@@ -18,7 +18,7 @@ using namespace cv;
 // Declaration of trackbar functions to set HSV colorspace's parameters: In this section, we declare the functions that are displayed at the end on the multiple trackbars. We declare two sets of trackbar functions; one for the red ball, and one for the blue ball, Void functions are used so that they do not return any value. int is used when integer values are desired.
 
 
-int low_h_b=90, low_s_b=100, low_v_b=40;
+int low_h_b=90, low_s_b=100, low_v_b=85;
 int high_h_b=120, high_s_b=255, high_v_b=255;
 
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
