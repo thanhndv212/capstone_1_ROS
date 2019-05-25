@@ -259,22 +259,24 @@ for( size_t i = 0; i< contours_r.size(); i++ ){
             string sz = floatToString(isz);
             float dis = ball_position_g[2];
             float pixel = 0.0002*pow(radius_g[i],2)-0.0362*radius_g[i]+1.766;
-	if ( (pixel - dis) <0.5){
+	if ( (pixel - dis) <0.3){
             ball_g_x.push_back(isx);
             ball_g_y.push_back(isy);
             ball_g_z.push_back(isz);
             ball_g_radius.push_back(radi);
                count_g++;
-               float x1, y1, x2, y2;
-               x1, x2 =center_g[i].x,center_g[i+1].x;
-               y1, y2 =center_g[i].y,center_g[i].y;
-               float diff = pow((x1-x2),2)+pow((y1-y2),2);
-               float l = radius_g[i];
+          
+              
             text = "Green ball:" + sx + "," + sy + "," + sz;
             putText(result, text, center_g[i],2,1,Scalar(0,255,0),2);
-            circle( result, center_g[i], (int)radius_g[i], color, 2, 8, 0 );
+            circle( result, center_g[i], (int)radius_g[i], color, 2, 8, 0 );}
+		 float x1, y1, x2, y2;
+               x1, x2 =center_g[i].x,center_g[i+1].x;
+               y1, y2 =center_g[i].y,center_g[i].y;
+		 float diff = pow((x1-x2),2)+pow((y1-y2),2);
+               float l = radius_g[i];
             if (abs(l)>diff)i++;}
-						}
+						
         }
 
 msg.size_b = count_b;
