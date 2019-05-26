@@ -21,6 +21,13 @@ using namespace cv;
 int low_h_b=90, low_s_b=100, low_v_b=85;
 int high_h_b=120, high_s_b=255, high_v_b=255;
 
+
+void on_low_h_thresh_trackbar_blue(int, void *);
+void on_high_h_thresh_trackbar_blue(int, void *);
+void on_low_s_thresh_trackbar_blue(int, void *);
+void on_high_s_thresh_trackbar_blue(int, void *);
+void on_low_v_thresh_trackbar_blue(int, void *);
+void on_high_v_thresh_trackbar_blue(int, void *);
 // Declaration of functions that changes data types: Here, we declare functions that change the type: from integer to string, and from float to string respectively.
 string intToString(int n);
 string floatToString(float f);
@@ -92,7 +99,19 @@ int main(int argc, char **argv)
     VideoCapture cap(idx);
 
     namedWindow("Result", WINDOW_NORMAL);
+    namedWindow("Object Detection_HSV_Blue", WINDOW_NORMAL);
+    namedWindow("Canny Edge for Blue Ball", WINDOW_NORMAL);
+
     moveWindow("Result", 470, 0);
+    createTrackbar("Low H","Object Detection_HSV_Blue", &low_h_b, 180, on_low_h_thresh_trackbar_blue);
+    createTrackbar("High H","Object Detection_HSV_Blue", &high_h_b, 180, on_high_h_thresh_trackbar_blue);
+    createTrackbar("Low S","Object Detection_HSV_Blue", &low_s_b, 255, on_low_s_thresh_trackbar_blue);
+    createTrackbar("High S","Object Detection_HSV_Blue", &high_s_b, 255, on_high_s_thresh_trackbar_blue);
+    createTrackbar("Low V","Object Detection_HSV_Blue", &low_v_b, 255, on_low_v_thresh_trackbar_blue);
+    createTrackbar("High V","Object Detection_HSV_Blue", &high_v_b, 255, on_high_v_thresh_trackbar_blue);
+
+    createTrackbar("Min Threshold:","Canny Edge for Blue Ball", &lowThreshold_b, 100, on_canny_edge_trackbar_blue);
+
 
     while((char)waitKey(1)!='q'){
     cap>>frame;
@@ -164,7 +183,7 @@ for( size_t i = 0; i< contours_b.size(); i++ ){
   if(radius_b[i] > 235){
       num=1;
             Scalar color = Scalar( 255, 0, 0);
-            drawContours( hsv_frame_blue_canny, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+            drawContours( result, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
             //circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
 
             cout <<radius_b[i]<<endl;
@@ -184,8 +203,10 @@ for( size_t i = 0; i< contours_b.size(); i++ ){
 msg.size_b = num;
     pub.publish(msg);
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
+    imshow("Video Capture",calibrated_frame);
+    imshow("Object Detection_HSV_Blue",hsv_frame_blue);
+    imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
     imshow("Result", result);
-
 
 
     }
@@ -212,4 +233,27 @@ void morphOps(Mat &thresh){//create structuring element that will be used to "di
     erode(thresh,thresh,erodeElement);
     dilate(thresh,thresh,dilateElement);
     dilate(thresh,thresh,dilateElement);
+}
+//Trackbar for image threshodling in HSV colorspace : Red : The functions had been declared and created, and now they are positioned in the relevant result frames. In this case, in the red ball's frames.
+void on_low_h_thresh_trackbar_blue(int, void *){low_h_b = min(high_h_b-1, low_h_b);
+    setTrackbarPos("Low H","Object Detection_HSV_Blue", low_h_b);
+}
+void on_high_h_thresh_trackbar_blue(int, void *){high_h_b = max(high_h_b, low_h_b+1);
+    setTrackbarPos("High H", "Object Detection_HSV_Blue", high_h_b);
+}
+void on_low_s_thresh_trackbar_blue(int, void *){low_s_b= min(high_s_b-1, low_s_b);
+    setTrackbarPos("Low S","Object Detection_HSV_Blue", low_s_b);
+}
+void on_high_s_thresh_trackbar_blue(int, void *){high_s_b = max(high_s_b, low_s_b+1);
+    setTrackbarPos("High S", "Object Detection_HSV_Blue", high_s_b);
+}
+void on_low_v_thresh_trackbar_blue(int, void *){low_v_b= min(high_v_b-1, low_v_b);
+    setTrackbarPos("Low V","Object Detection_HSV_Blue", low_v_b);
+}
+void on_high_v_thresh_trackbar_blue(int, void *){high_v_b = max(high_v_b, low_v_b+1);
+    setTrackbarPos("High V", "Object Detection_HSV_Blue", high_v_b);
+}
+
+// Trackbar for Canny edge algorithm : The trackbars for the Canny edge window are positioned here, for both the red and blue balls.
+void on_canny_edge_trackbar_blue(int, void *){setTrackbarPos("Min Threshold", "Canny Edge for Blue Ball", lowThreshold_b);
 }

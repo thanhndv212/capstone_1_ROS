@@ -69,7 +69,7 @@ void lidar_cb(sensor_msgs::LaserScan msg){
 
             // TO DO START
 
-            new_cloud->points[i].x = -range[i]*cos(angle_temp);
+            new_cloud->points[i].x = range[i]*cos(angle_temp);
             new_cloud->points[i].y = range[i]*sin(angle_temp);
             new_cloud->points[i].z = 0;
 
