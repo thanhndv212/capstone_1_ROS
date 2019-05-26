@@ -29,9 +29,10 @@
 #define POLICY LEFTMOST
 #define WEBCAM
 #define MYRIO
-#define LIDAR
 
 #define DISTANCE_TICKS 65
+
+#define DIST(x1,y1,x2,y2) sqrt(((x2-x1)*(x2-x1))+((y2-y1)*(y2-y1)))
 
 #define ROTATE_CONST_SLOW 1.0f
 #define TRANSLATE_CONST_SLOW 210.0f
@@ -40,7 +41,10 @@
 #define COLLECT_THRESH_FRONT 0.1f
 #define DISTANCE_TICKS_CL 50
 
-#define TESTENV "demo-simple"
+#define TESTENV "demo-final"
+
+#define RELIABLE
+#define UNRELIABLE
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = INIT;
@@ -87,14 +91,23 @@ float green_z_top[20];
 
 /* CAM03 */
 size_t dupACKcnt = 0;
-
+int return_mode = 0;
 #endif
 
+#ifdef MYRIO
 int c_socket, s_socket;
 struct sockaddr_in c_addr;
 int len;
 int n;
 float data[24];
+#endif
+
+#ifdef LIDAR
+/* Absolute position relative to start pos */
+float xpos_abs;
+float ypos_abs;
+float theta_abs;
+#endif
 
 float x_offset, y_offset, z_offset, x_offset_top, z_offset_top;
 float downside_angle;
@@ -224,6 +237,13 @@ int main(int argc, char **argv)
       if(recent_status != machine_status)
         std::cout << "(" << TESTENV << ") state = " << cond[(recent_status = machine_status)] << std::endl;
 
+      if(timer_ticks > 40 * timeout && !return_mode) {
+        printf("(%s) switching to return mode after %.2f s of timeout\n", TESTENV, (float) timeout);
+        machine_status = LIDAR_RETURN;
+        return_mode = 1;
+      }
+
+
       /* switching between states */
       switch(machine_status) {
         case INIT:
@@ -232,7 +252,7 @@ int main(int argc, char **argv)
           GO_FRONT
 
           /* Initiate SEARCH */          
-          if(timer_ticks - current_ticks >= 200)
+          if(timer_ticks - current_ticks >= 80)
             machine_status = SEARCH;
           
           break;
@@ -298,7 +318,7 @@ int main(int argc, char **argv)
 
             if(timer_ticks - current_ticks > DISTANCE_TICKS) {
               red_phase2 = false;
-              machine_status = SEARCH;
+              machine_status = (return_mode)? LIDAR_RETURN : SEARCH;
           }
         }
           break;
@@ -348,6 +368,32 @@ int main(int argc, char **argv)
           break;
         }
         case LIDAR_RETURN:
+        {
+          #ifndef LIDAR
+          printf("(%s) LIDAR_RETURN : No LIDAR detected. Exitting.\n", TESTENV);
+          machine_status = SEARCH_GREEN;
+    
+          #else      
+          if(theta_abs > 190.0f) {
+            MSGE("LIDAR_RETURN : turn left")
+            TURN_LEFT
+          } else if(theta_abs < 170.0f) {
+            MSGE("LIDAR_RETURN : turn right")
+            TURN_RIGHT
+          } else if(xpos_abs > 2.0f) {
+            MSGE("LIDAR_RETURN : go_front")
+            GO_FRONT
+          } else {
+            machine_status = SEARCH_GREEN;
+          }
+
+          if(red_in_range()){
+            MSGE("LIDAR_RETURN : red ball detected")
+            machine_status = RED_AVOIDANCE;
+          }
+          #endif
+          break;
+        }
         case SEARCH_GREEN:
         {
           int target_g = leftmost_green();
@@ -403,11 +449,17 @@ int main(int argc, char **argv)
             case 2:
             {
               if(!(timer_ticks%10)) printf("(%s) APPROACH_GREEN : green_cnt = 2\n", TESTENV);
+
               float xg1 = green_x[0];
               float xg2 = green_x[1];
               float zg1 = green_z[0];
               float zg2 = green_z[1];
+
+              /* Make sure one ball is recognized as 2 */
+              assert(DIST(xg1,zg1,xg2,zg2) >= 0.05);
+
               float degree = atan((zg2-zg1)/(xg2-xg1));
+
               float mid_x = 0.5 * (xg1 + xg2);
               float mid_z = 0.5 * (zg1 + zg2);
 
@@ -437,11 +489,11 @@ int main(int argc, char **argv)
                   goal_theta = RAD2DEG(degree_);
                   goal_x = mid_x_trn_;
                   goal_z = mid_z_trn_;
-
                   printf("(%s) angular offset = %.3f deg, x_ofs = %.3f, z_ofs = %.3f\n", TESTENV, RAD2DEG(degree_), mid_x_trn_, mid_z_trn_);
                 
                   machine_status = APPROACH_GREEN_2;
                   current_ticks = timer_ticks;
+
                 }
               }
 
@@ -452,9 +504,30 @@ int main(int argc, char **argv)
             }
             default:
             {
-              break;
-              printf("(%s) FAIL : there are %d green balls\n",TESTENV, green_cnt);
-              assert(green_cnt <= 2); 
+              /* Evaluation over UNRELIABLE openCV */              
+              printf("(%s) APPROACH_GREEN : evaluation in unreliable mode : there are %d green balls\n",TESTENV, green_cnt);
+              float xg1 = green_x[leftmost_green()];
+              float xg2 = green_x[rightmost_green()];
+              float zg1 = green_z[leftmost_green()];
+              float zg2 = green_z[rightmost_green()];
+
+              float mid_x = 0.5 * (xg1 + xg2);
+              float mid_z = 0.5 * (zg1 + zg2);
+
+              float degree_ = atan((zg2-zg1)/(xg2-xg1));
+              
+              float mid_x_trn_ = mid_x * cos(degree_) + mid_z * sin(degree_);
+              float mid_z_trn_ = mid_z * cos(degree_) - mid_x * sin(degree_);
+
+              goal_theta = RAD2DEG(degree_);
+              goal_x = mid_x_trn_;
+              goal_z = mid_z_trn_;
+
+              printf("(%s) angular offset = %.3f deg, x_ofs = %.3f, z_ofs = %.3f\n", TESTENV, RAD2DEG(degree_), mid_x_trn_, mid_z_trn_);
+                
+              machine_status = APPROACH_GREEN_2;
+              current_ticks = timer_ticks;
+
               break;
             }
 
@@ -590,6 +663,7 @@ int main(int argc, char **argv)
 
         case RELEASE:
         {
+          #ifndef LIDAR
           uint32_t goal_front_ticks = (uint32_t) (90.0f * goal_z);
 
           if(timer_ticks-current_ticks < goal_front_ticks) {
@@ -601,7 +675,21 @@ int main(int argc, char **argv)
           } else {
             PANIC("RELEASE_TERMINATE : should have released 3 balls.")
           }
+          #else
+          if(xpos_abs > 0.02f) {
+            MSGE("RELEASE - go front(feedback)")
+            GO_FRONT
+            current_ticks = 0;
+          } else {
+            MSGE("RELEASE - roller_reverse")
+            ROLLER_REVERSE
+            current_ticks++;
+          }
 
+          if(current_ticks > 200)
+            PANIC("RELEASE : terminating. should have released 3 balls.")
+          #endif
+          
           break; 
         }
 
@@ -732,11 +820,13 @@ void camera_Callback_counter(const core_msgs::roller_num::ConstPtr& cnt)
 {
   int shift = cnt->size_b;
 
-  if(shift) {
+  if(shift && !return_mode) {
     printf("(%s) dupACKcnt = %d\n", TESTENV, (int) ++dupACKcnt);
-    if(dupACKcnt > 3) {  // 3 Duplicate ACK
-      if(machine_status == SEARCH)
+    if(dupACKcnt >= 3) {  // 3 Duplicate ACK
+      if(machine_status == SEARCH || !return_mode) {
         machine_status = LIDAR_RETURN;
+        return_mode = 1;
+      }
     }
   }
   else
@@ -790,6 +880,21 @@ int leftmost_green() {
     }
   }
   return min_idx;
+}
+
+int rightmost_green() {
+  if(!green_cnt)
+    return -1;
+  
+  float xpos = green_x[0];
+  int max_idx = 0;
+
+  for(int i=0; i<green_cnt; i++) {
+    if(green_x[i] >= xpos)
+      xpos = green_x[(max_idx = i)];
+  }
+
+  return max_idx;
 }
 
 int leftmost_green_top() {
@@ -953,7 +1058,14 @@ int furthest_green() {
 #ifdef LIDAR
 void lidar_Callback(const lidar::coor::ConstPtr& pos)
 {
-  printf("(%s) lidar callback! %.3f %.3f %.3f \n", TESTENV, pos->coor_x, pos->coor_y, pos->coor_theta);
+  /* Update absolute position using pos */
+  xpos_abs = pos->coor_x;
+  ypos_abs = pos->coor_y;
+  theta_abs = pos->coor_theta;
+
+  if(DEBUG) printf("(%s) lidar callback! %.3f %.3f %.3f \n", TESTENV, pos->coor_x, pos->coor_y, pos->coor_theta);
+
+
 }
 #endif
 

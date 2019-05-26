@@ -41,7 +41,6 @@
 #define TESTENV "demo-return"
 
 #define RELIABLE
-#define UNRELIABLE
 
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = SEARCH_GREEN;
@@ -307,7 +306,7 @@ int main(int argc, char **argv)
                 TURN_LEFT_SLOW
                 if(!(timer_ticks%10)) printf("(%s) midpoint_x = %.3f : turn_left\n", TESTENV, mid_x);
               } else {
-                if(abs((green_x[0])<= 0.25 && abs((green_x[1])<=0.25) )) {
+                if(abs((green_x[0])<= 0.25 && abs((green_x[1])<= 0.25) )) {
                   float xg1_ = green_x[0];
                   float xg2_ = green_x[1];
                   float zg1_ = green_z[0];
@@ -316,13 +315,13 @@ int main(int argc, char **argv)
                   float degree_ = atan((zg2-zg1)/(xg2-xg1));
                   float mid_x_ = 0.5 * (xg1 + xg2);
                   float mid_z_ = 0.5 * (zg1 + zg2);
-
                   float mid_x_trn_ = mid_x * cos(degree_) + mid_z * sin(degree_);
                   float mid_z_trn_ = mid_z * cos(degree_) - mid_x * sin(degree_);
 
                   goal_theta = RAD2DEG(degree_);
                   goal_x = mid_x_trn_;
                   goal_z = mid_z_trn_;
+
 
                   printf("(%s) angular offset = %.3f deg, x_ofs = %.3f, z_ofs = %.3f\n", TESTENV, RAD2DEG(degree_), mid_x_trn_, mid_z_trn_);
                 
@@ -338,9 +337,39 @@ int main(int argc, char **argv)
             }
             default:
             {
-              break;
               printf("(%s) FAIL : there are %d green balls\n",TESTENV, green_cnt);
-              assert(green_cnt <= 2); 
+              // UNRELIABLE openCV
+              float x_cum = 0;
+              float y_cum = 0;
+
+              for(int i=0; i<green_cnt; i++) {
+                x_cum += green_x[i];
+                y_cum += green_z[i];
+              }
+              x_cum /= green_cnt;
+              y_cum /= green_cnt;
+
+              float xg1_ = green_x[0];
+              float xg2_ = green_x[1];
+              float zg1_ = green_z[0];
+              float zg2_ = green_z[1];
+
+              float degree_ = atan((y_cum-zg1_)/(x_cum-xg1_));
+ 
+
+              float mid_x_trn_ = x_cum * cos(degree_) + x_cum * sin(degree_);
+              float mid_z_trn_ = y_cum * cos(degree_) - x_cum * sin(degree_);
+
+              goal_theta = RAD2DEG(degree_);
+
+              goal_x = mid_x_trn_;
+              goal_z = mid_z_trn_;
+
+
+              machine_status = APPROACH_GREEN_2;
+
+              
+              // assert(green_cnt <= 2); 
               break;
             }
 

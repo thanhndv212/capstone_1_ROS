@@ -77,6 +77,7 @@ bool ball_in_range(enum color ball_color);
 int closest_ball(enum color ball_color);
 int centermost_green();
 int leftmost_green();
+int rightmost_green();
 int leftmost_green_top();
 int centermost_green();
 int closest_green();
