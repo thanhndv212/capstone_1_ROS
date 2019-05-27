@@ -34,8 +34,8 @@
 
 #define DIST(x1,y1,x2,y2) sqrt(((x2-x1)*(x2-x1))+((y2-y1)*(y2-y1)))
 
-#define ROTATE_CONST_SLOW 1.0f
-#define TRANSLATE_CONST_SLOW 210.0f
+#define ROTATE_CONST_SLOW 1.5f
+#define TRANSLATE_CONST_SLOW 350.0f
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
@@ -414,7 +414,7 @@ int main(int argc, char **argv)
               if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : go_front\n", TESTENV);
             }
 
-            if(zpos <= 0.54) {
+            if(zpos <= 0.80) {
               machine_status = APPROACH_GREEN;
             }
 
@@ -456,7 +456,7 @@ int main(int argc, char **argv)
               float zg2 = green_z[1];
 
               /* Make sure one ball is recognized as 2 */
-              assert(DIST(xg1,zg1,xg2,zg2) >= 0.05);
+              if(DIST(xg1,zg1,xg2,zg2) <= 0.05) { TURN_RIGHT break; }
 
               float degree = atan((zg2-zg1)/(xg2-xg1));
 
@@ -585,6 +585,12 @@ int main(int argc, char **argv)
           float zg2 = green_z[1];
           #endif
 
+          if(green_cnt < 2) {
+            printf("(%s) APPROACH_GREEN : there are %d balls. phase out to APPROACH_GREEN\n", TESTENV, green_cnt);
+            machine_status = APPROACH_GREEN;
+            break;
+          }
+
           float angular_ofs = RAD2DEG(atan((zg2 - zg1) / (xg2 - xg1)));
 
           if(!(timer_ticks%10)) printf("(%s) angle = %.4f\n", TESTENV, angular_ofs);
@@ -655,7 +661,7 @@ int main(int argc, char **argv)
 
           if(theta < -1.5f) TURN_RIGHT_SLOW
           else if(theta > 1.5f) TURN_LEFT_SLOW
-          else { machine_status = RELEASE; }
+          else { current_ticks = timer_ticks; machine_status = RELEASE; }
           
           break;
         }  
@@ -668,7 +674,7 @@ int main(int argc, char **argv)
 
           if(timer_ticks-current_ticks < goal_front_ticks) {
             MSGE("RELEASE - go front")
-            GO_FRONT
+            GO_FRONT_SLOW
           } else if(timer_ticks - current_ticks < 100 + goal_front_ticks) {
             MSGE("RELEASE - roller_reverse")
             ROLLER_REVERSE
@@ -1027,6 +1033,21 @@ int closest_ball(enum color ball_color) {
 
         return result_idx;
       break;
+    }
+    case GREEN:
+    {
+      int result_idx = -1;
+
+      if(!green_cnt)
+        return -1;
+      float front_dist = green_z[0];
+      for(int i=0; i<green_cnt; i++) {
+        if(green_z[i] <= front_dist) {
+          front_dist = green_z[i];
+          result_idx = i;
+        }
+      }
+      return result_idx;
     }
     default:
       { return -1; }
