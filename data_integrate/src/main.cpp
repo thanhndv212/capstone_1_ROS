@@ -34,7 +34,7 @@
 
 #define DIST(x1,y1,x2,y2) sqrt(((x2-x1)*(x2-x1))+((y2-y1)*(y2-y1)))
 
-#define ROTATE_CONST_SLOW 1.5f
+#define ROTATE_CONST_SLOW 1.4f
 #define TRANSLATE_CONST_SLOW 350.0f
 
 #define DURATION 0.025f
@@ -398,7 +398,6 @@ int main(int argc, char **argv)
         {
           int target_g = leftmost_green();
           int target_g_top = leftmost_green_top();
-
           if(target_g_top >= 0) {
             float xpos = green_x_top[target_g_top];
             float zpos = green_z_top[target_g_top];
@@ -414,7 +413,7 @@ int main(int argc, char **argv)
               if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : go_front\n", TESTENV);
             }
 
-            if(zpos <= 0.80) {
+            if(zpos <= 0.8) {
               machine_status = APPROACH_GREEN;
             }
 
@@ -595,10 +594,10 @@ int main(int argc, char **argv)
 
           if(!(timer_ticks%10)) printf("(%s) angle = %.4f\n", TESTENV, angular_ofs);
           
-          if(angular_ofs < -2.0f) {
+          if(angular_ofs < -1.6f) {
             MSGE("feedback - rotation CW")
             TURN_RIGHT_SLOW
-          } else if(angular_ofs > 2.0f) {
+          } else if(angular_ofs > 1.6f) {
             MSGE("feedback - rotation CCW")
             TURN_LEFT_SLOW
           } else {
@@ -657,6 +656,7 @@ int main(int argc, char **argv)
           float zg1 = green_z[0];
           float zg2 = green_z[1];
 
+          assert(DIST(xg1,zg1,xg2,zg2)>=0.05);
           float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1)));
 
           if(theta < -1.5f) TURN_RIGHT_SLOW
@@ -670,7 +670,7 @@ int main(int argc, char **argv)
         case RELEASE:
         {
           #ifndef LIDAR
-          uint32_t goal_front_ticks = (uint32_t) (90.0f * goal_z);
+          uint32_t goal_front_ticks = (uint32_t) (280.0f * goal_z);
 
           if(timer_ticks-current_ticks < goal_front_ticks) {
             MSGE("RELEASE - go front")
