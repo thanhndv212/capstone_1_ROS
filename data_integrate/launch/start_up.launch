@@ -1,0 +1,7 @@
+<launch>
+    <node pkg="ball_track" type="ball_track_node" name="ball_track_node"/>
+    <node pkg="ball_track" type="ball_track_top_node" name="ball_track_top_node"/>
+    <node pkg="ball_track" type="ball_roller_node" name="ball_roller_node"/>
+    <node pkg="rplidar_ros" type="rplidarNode" name="rplidarNode"/>
+    <node pkg="lidar" type="lidar_coor_node" name="lidar_coor_node"/>
+</launch>
