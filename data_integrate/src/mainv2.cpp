@@ -284,6 +284,7 @@ int main(int argc, char **argv)
             }
           }
 
+          if(red_in_range()) machine_status = RED_AVOIDANCE;
           break;
         }
         case APPROACH:
@@ -321,7 +322,7 @@ int main(int argc, char **argv)
 
             if(timer_ticks - current_ticks > DISTANCE_TICKS) {
               red_phase2 = false;
-              machine_status = (return_mode)? LIDAR_RETURN : SEARCH;
+              machine_status = (return_mode)? SEARCH_GREEN : SEARCH;
           }
         }
           break;
@@ -430,18 +431,20 @@ int main(int argc, char **argv)
               } else if(mid_x < -0.02f) {
                 SG_sema = 1;
                 if(!dirtybit_SG) TRANSLATE_LEFT_3x
-                else TRANSLATE_LEFT //_SLOW
+                else TRANSLATE_LEFT_3x //_SLOW
               } else if(mid_x > 0.02f) {
                 SG_sema = 1;
                 if(!dirtybit_SG) TRANSLATE_RIGHT_3x
-                else TRANSLATE_RIGHT //_SLOW
+                else TRANSLATE_RIGHT_3x //_SLOW
               } else {
                 GO_FRONT
                 MSGE("go_front")
               }
         
-              if(0.5*(zg1+zg2) <= 0.8) machine_status = APPROACH_GREEN;
+              if(0.5*(zg1+zg2) <= 0.8){ printf("goal distance = %.4f\n", 0.5*(zg1+zg2)); goal_z = 0.5*(zg1+zg2); current_ticks = timer_ticks; machine_status = RELEASE; } //machine_status = APPROACH_GREEN;
 
+            if(red_in_range())
+              machine_status = RED_AVOIDANCE;
 
             break;
             }
@@ -725,9 +728,9 @@ int main(int argc, char **argv)
         #endif
 
         case RELEASE:
-        {
+        { assert(1);
           #ifndef LIDAR
-          uint32_t goal_front_ticks = (uint32_t) (280.0f * goal_z);
+          uint32_t goal_front_ticks = (uint32_t) (100.0f * (goal_z));
 
           if(timer_ticks-current_ticks < goal_front_ticks) {
             MSGE("RELEASE - go front")
