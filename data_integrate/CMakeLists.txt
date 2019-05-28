@@ -55,9 +55,20 @@ target_link_libraries(demo_return
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
 
+add_executable(front src/front.cpp)
+add_dependencies(front core_msgs_generate_messages_cpp)
+target_link_libraries(front
+  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+)
+
+add_executable(main2 src/mainv2.cpp)
+add_dependencies(main2 core_msgs_generate_messages_cpp)
+target_link_libraries(main2
+  ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
+)
+
 add_executable(main src/main.cpp)
 add_dependencies(main core_msgs_generate_messages_cpp)
 target_link_libraries(main
   ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBRARIES}
 )
-

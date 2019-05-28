@@ -28,7 +28,13 @@
 #define TRANSLATE_RIGHT { data[15] = 1; }
 #define TURN_RIGHT_SLOW { data[20] = 1; }
 #define TURN_LEFT_SLOW { data[21] = 1; }
-#define GO_FRONT_SLOW { data[9] = 1; }
+#define GO_FRONT_SLOW { data[23] = 1; }
+#define TRANSLATE_LEFT_2x { data[8] = 1; }
+#define TRANSLATE_RIGHT_2x { data[9] = 1; }
+#define TRANSLATE_LEFT_3x { data[18] = 1; }
+#define TRANSLATE_RIGHT_3x { data[19] = 1; }
+
+
 
 #define MSGE(x) { if(!(timer_ticks%10)) std::cout << "(" << TESTENV << ") " << x << std::endl; }
 #define PANIC(msg) { std::cout << "Kernel PANIC at " << msg << std::endl; assert(0); }

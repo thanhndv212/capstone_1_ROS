@@ -35,7 +35,7 @@
 #define DIST(x1,y1,x2,y2) sqrt(((x2-x1)*(x2-x1))+((y2-y1)*(y2-y1)))
 
 #define ROTATE_CONST_SLOW 1.4f
-#define TRANSLATE_CONST_SLOW 410.0f
+#define TRANSLATE_CONST_SLOW 820.0f
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
@@ -93,6 +93,9 @@ float green_z_top[20];
 size_t dupACKcnt = 0;
 int return_mode = 0;
 #endif
+
+bool dirtybit_SG = false;
+int SG_sema = 0;
 
 #ifdef MYRIO
 int c_socket, s_socket;
@@ -396,6 +399,57 @@ int main(int argc, char **argv)
         }
         case SEARCH_GREEN:
         {
+          switch(green_cnt_top) {
+            case 0:
+            case 1:
+              TURN_RIGHT
+              break;
+            case 2:
+            default:
+            {
+              float xg1 = green_x_top[0];
+              float zg1 = green_z_top[0];
+              float xg2 = green_x_top[1];
+              float zg2 = green_z_top[1];
+
+              float mid_x = 0.5 * (xg1 + xg2);
+              float mid_z = 0.5 * (zg1 + zg2);
+
+              printf(" (%.3f, %.3f), (%.3f, %.3f) \n", xg1, zg1, xg2, zg2);
+
+              float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1)));
+
+              if(theta < -10.0f){
+                TURN_RIGHT_SLOW
+                MSGE("turn_right_slow")
+                if(SG_sema) dirtybit_SG = true;
+              } else if(theta > 10.0f) {
+                TURN_LEFT_SLOW
+                MSGE("turn_left_slow")
+                if(SG_sema) dirtybit_SG = true;
+              } else if(mid_x < -0.02f) {
+                SG_sema = 1;
+                if(!dirtybit_SG) TRANSLATE_LEFT_3x
+                else TRANSLATE_LEFT //_SLOW
+              } else if(mid_x > 0.02f) {
+                SG_sema = 1;
+                if(!dirtybit_SG) TRANSLATE_RIGHT_3x
+                else TRANSLATE_RIGHT //_SLOW
+              } else {
+                GO_FRONT
+                MSGE("go_front")
+              }
+        
+              if(0.5*(zg1+zg2) <= 0.8) machine_status = APPROACH_GREEN;
+
+
+            break;
+            }
+          }
+
+
+
+#ifdef UNUSED
           int target_g = leftmost_green();
           int target_g_top = leftmost_green_top();
           if(target_g_top >= 0) {
@@ -418,7 +472,7 @@ int main(int argc, char **argv)
             }
 
           } else TURN_RIGHT
-            
+#endif
           break;
         }
         case APPROACH_GREEN:

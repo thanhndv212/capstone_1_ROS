@@ -14,7 +14,6 @@
 #include <sys/socket.h>
 #include <boost/thread.hpp>
 
-
 #include <ros/ros.h>
 #include <ros/package.h>
 
@@ -53,27 +52,12 @@
 uint32_t timer_ticks = 0;
 uint32_t current_ticks = 0;
 
-/* State variable declaration */
-enum status {
-  /* Moving around */
-  SEARCH, APPROACH, RED_AVOIDANCE,
-  /* Turn on roller only for this state */
-  COLLECT,
-  /* Return to goal pos */
-  SEARCH_GREEN, APPROACH_GREEN, RELEASE
-};
-
-enum color {
-  NONE, BLUE, RED, GREEN
-};
 
 enum actions {
   TURN_LEFT_, TURN_RIGHT_, GO_FRONT_, GO_BACK_
 };
 
 /* State of our machine = SEARCH phase by default */
-enum status machine_status = SEARCH;
-enum color closest_ball = NONE;
 
 /* Number of balls holding */
 int ball_cnt = 0; 
@@ -173,8 +157,7 @@ int main(int argc, char **argv)
     while(ros::ok){
       dataInit();
 
-      if(timer_ticks <= (int) (dist_arg * FRONT_CONST)) {
-        TRANSLATE_LEFT      
+      if(timer_ticks <= (int) (dist_arg * FRONT_CONST)) { GO_FRONT
       } else {
         printf("(%s) finished. should have proceeded %.3f meters(%d timer ticks)\n", TESTENV, dist_arg, timer_ticks);
         break;
