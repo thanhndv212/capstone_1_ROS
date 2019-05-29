@@ -39,7 +39,7 @@
 
 #define DURATION 0.025f
 #define COLLECT_THRESH_FRONT 0.1f
-#define DISTANCE_TICKS_CL 50
+#define DISTANCE_TICKS_CL 75
 
 #define TESTENV "demo-final"
 
@@ -362,7 +362,8 @@ int main(int argc, char **argv)
         }
         case COLLECT2:
         {
-          GO_FRONT ROLLER_ON
+          if(timer_ticks - current_ticks <= 40) GO_FRONT
+	  ROLLER_ON
           if(timer_ticks - current_ticks > DISTANCE_TICKS_CL) {
             machine_status = SEARCH;
 
@@ -402,9 +403,19 @@ int main(int argc, char **argv)
         {
           switch(green_cnt_top) {
             case 0:
+		{ TURN_RIGHT_SLOW break; }
             case 1:
-              TURN_RIGHT
+		{
+	      if(!(timer_ticks%10)) printf("(%s) spin(green_cnt_top = %d), zpos = %.4f\n", TESTENV, green_cnt_top, green_z_top[0]);
+              if(green_z_top[0] > 2.0f){
+		 float target_theta = RAD2DEG(atan(green_x_top[0]/green_z_top[0]));
+		if(target_theta < -20.0f) TURN_RIGHT
+		else if(target_theta > 20.0f) TURN_LEFT
+		else GO_FRONT
+	      }
+ 	      else { TURN_RIGHT_SLOW printf("turn_right : cnt=1, zpos = %.4f\n", green_z_top[0]); }
               break;
+		}
             case 2:
             default:
             {
@@ -416,31 +427,41 @@ int main(int argc, char **argv)
               float mid_x = 0.5 * (xg1 + xg2);
               float mid_z = 0.5 * (zg1 + zg2);
 
-              printf(" (%.3f, %.3f), (%.3f, %.3f) \n", xg1, zg1, xg2, zg2);
+              if(!(timer_ticks % 10)) printf(" (%.3f, %.3f), (%.3f, %.3f) \n", xg1, zg1, xg2, zg2);
 
               float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1)));
+if(mid_z > 2.0f) {
+  float target_theta = RAD2DEG(atan(mid_x/mid_z));
+  if(target_theta > 10.0f) TURN_RIGHT
+  else if(target_theta < -10.0f) TURN_LEFT
+  else GO_FRONT 
+
+
+} else {
 
               if(theta < -10.0f){
-                TURN_RIGHT_SLOW
+		if(theta < -15.0f) TURN_RIGHT
+                else TURN_RIGHT_SLOW
                 MSGE("turn_right_slow")
                 if(SG_sema) dirtybit_SG = true;
               } else if(theta > 10.0f) {
-                TURN_LEFT_SLOW
+                if(theta > 15.0f) TURN_LEFT
+		else TURN_LEFT_SLOW
                 MSGE("turn_left_slow")
                 if(SG_sema) dirtybit_SG = true;
               } else if(mid_x < -0.02f) {
                 SG_sema = 1;
-                if(!dirtybit_SG) TRANSLATE_LEFT_3x
-                else TRANSLATE_LEFT_3x //_SLOW
+                if(mid_x < -0.10f) TRANSLATE_LEFT_3x
+                else TRANSLATE_LEFT //_SLOW
               } else if(mid_x > 0.02f) {
                 SG_sema = 1;
-                if(!dirtybit_SG) TRANSLATE_RIGHT_3x
-                else TRANSLATE_RIGHT_3x //_SLOW
+                if(mid_x > 0.10f) TRANSLATE_RIGHT_3x
+                else TRANSLATE_RIGHT //_SLOW
               } else {
                 GO_FRONT
                 MSGE("go_front")
               }
-        
+}       
               if(0.5*(zg1+zg2) <= 0.8){ printf("goal distance = %.4f\n", 0.5*(zg1+zg2)); goal_z = 0.5*(zg1+zg2); current_ticks = timer_ticks; machine_status = RELEASE; } //machine_status = APPROACH_GREEN;
 
             if(red_in_range())
@@ -728,9 +749,9 @@ int main(int argc, char **argv)
         #endif
 
         case RELEASE:
-        { assert(1);
+        { 
           #ifndef LIDAR
-          uint32_t goal_front_ticks = (uint32_t) (100.0f * (goal_z));
+          uint32_t goal_front_ticks = (uint32_t) (90.0f * (goal_z));
 
           if(timer_ticks-current_ticks < goal_front_ticks) {
             MSGE("RELEASE - go front")
@@ -739,6 +760,7 @@ int main(int argc, char **argv)
             MSGE("RELEASE - roller_reverse")
             ROLLER_REVERSE
           } else {
+	    printf("(%s) elapsed time = %.4f sec\n", TESTENV, 0.025 * timer_ticks);
             PANIC("RELEASE_TERMINATE : should have released 3 balls.")
           }
           #else
@@ -752,8 +774,10 @@ int main(int argc, char **argv)
             current_ticks++;
           }
 
-          if(current_ticks > 500)
+          if(current_ticks > 500){
+	    printf("(%s) elapsed time = %.4f sec\n", TESTENV, 0.025 * timer_ticks);
             PANIC("RELEASE : terminating. should have released 3 balls.")
+	  }
           #endif
           
           break; 
