@@ -403,7 +403,7 @@ int main(int argc, char **argv)
         {
           switch(green_cnt_top) {
             case 0:
-		{ TURN_RIGHT_SLOW break; }
+		{ TURN_RIGHT_MID break; }
             case 1:
 		{
 	      if(!(timer_ticks%10)) printf("(%s) spin(green_cnt_top = %d), zpos = %.4f\n", TESTENV, green_cnt_top, green_z_top[0]);
