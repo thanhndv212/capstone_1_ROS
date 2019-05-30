@@ -104,12 +104,9 @@ int main(int argc, char **argv)
     vector<vector<Point> > contours_g;
 
     // Here, we start the video capturing function, with the argument being the camera being used. 0 indicates the default camera, and 1 indicates the additional camera. Also, we make the 6 windows which we see at the results.
-    VideoCapture cap(1);
-    namedWindow("Video Capture", WINDOW_NORMAL);
-    namedWindow("Result", WINDOW_NORMAL);
-
-    moveWindow("Video Capture",              50, 0);
-    moveWindow("Result", 470, 0);
+    VideoCapture cap(idx);
+	namedWindow("Result", WINDOW_NORMAL);
+	moveWindow("Result", 470, 0);
 
 
     while((char)waitKey(1)!='q'){
@@ -192,6 +189,8 @@ vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
             float pixel = 0.0002*pow(radius_b[i],2)-0.0362*radius_b[i]+1.766;
 		//cout << center_b[i]<<endl;
 		//cout <<"2"<<endl;
+	      	if ( (pixel - dis) <0.3){
+
 		            ball_b_x.push_back(ball_position_b[0]);
                 ball_b_y.push_back(ball_position_b[1]);
                 ball_b_z.push_back(ball_position_b[2]);
@@ -212,7 +211,7 @@ vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
                 circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
 		              cout<<"blue"<<i<<"\t"<<dis<<endl;
                 if (abs(l)>diff)i++;
-
+		}
         }
       }
 
@@ -297,7 +296,6 @@ msg.img_z_g = ball_g_z;
     pub.publish(msg);
 cout <<count_b<<count_r<<endl;
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
-    imshow("Video Capture",calibrated_frame);
     imshow("Result", result);
 
 
