@@ -163,7 +163,7 @@ cv::Point_<int> center(230,250);
 //                }
 
 for( size_t i = 0; i< contours_b.size(); i++ ){
-  if(radius_b[i] > 177){
+  if(radius_b[i] > 187){
       num=1;
             Scalar color = Scalar( 255, 0, 0);
             drawContours( result, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
