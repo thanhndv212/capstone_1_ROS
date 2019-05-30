@@ -9,7 +9,7 @@
 #include "core_msgs/ball_position.h"
 #include <cv_bridge/cv_bridge.h>
 
-
+#define INDEX_DEFAULT 0
 
 using namespace std;
 using namespace cv;
@@ -74,7 +74,7 @@ void sigint_handler(int sig){
 
 // Here, we start our main function.
 int main(int argc, char **argv)
-{
+{ int idx = (argc == 1)? INDEX_DEFAULT : (atoi(argv[1]));
     signal(SIGINT, sigint_handler);
 
     ros::init(argc, argv, "ball_detect_node"); //init ros nodd
