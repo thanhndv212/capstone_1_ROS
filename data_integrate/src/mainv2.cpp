@@ -25,8 +25,7 @@
 
 #include "opencv2/opencv.hpp"
 #include "util_rtn.hpp"
-
-#define POLICY CLOSEST
+#define POLICY LEFTMOST
 #define WEBCAM
 #define MYRIO
 
@@ -191,8 +190,8 @@ int main(int argc, char **argv)
     z_offset_top = atof(z_offset_top_);
     timeout = atoi(timeout_str);
 
-    if(!(flag & 0x8)) x_offset = 0.0002f;
-    if(!(flag & 0x2)) z_offset = 0.13f;
+    if(!(flag & 0x8)) x_offset = -0.01f;
+    if(!(flag & 0x2)) z_offset = 0.18f;
     if(!(flag & 0x10)) x_offset_top = 0;
     if(!(flag & 0x20)) z_offset_top = 0;
     if(!(flag & 0x40)) timeout = 60;
