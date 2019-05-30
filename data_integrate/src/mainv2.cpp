@@ -26,7 +26,7 @@
 #include "opencv2/opencv.hpp"
 #include "util_rtn.hpp"
 
-#define POLICY LEFTMOST
+#define POLICY CLOSEST
 #define WEBCAM
 #define MYRIO
 
@@ -49,7 +49,8 @@
 /* State of our machine = SEARCH phase by default */
 enum status machine_status = INIT;
 enum status recent_status = INIT;
-
+int target_blue_top(int policy);
+int closest_blue_top();
 /* Number of balls holding */
 int ball_cnt = 0;
 
@@ -262,8 +263,8 @@ int main(int argc, char **argv)
         }
         case SEARCH:
         {
-          int target_b = leftmost_blue();
-          int target_b_top = leftmost_blue_top();
+          int target_b = target_blue(POLICY); //leftmost_blue();
+          int target_b_top = target_blue_top(POLICY); //leftmost_blue_top();
 
           if(target_b < 0) {
             if(target_b_top >= 0) {
@@ -821,8 +822,9 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     // transform the matrix
     float x_pos = position->img_x_b[i];
     float y_pos = position->img_y_b[i];
-    float z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0) - pow(position->img_y_b[i],2.0));
-    z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0));
+    //float z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0) - pow(position->img_y_b[i],2.0));
+    float z_pos = position->img_z_b[i];
+    //z_pos = position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     blue_x[i] = x_pos - x_offset;
@@ -835,8 +837,9 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
   for(int i=0; i<r_cnt; i++) {
     float x_pos = position->img_x_r[i];
     float y_pos = position->img_y_r[i];
-    float z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(red_x[i], 2.0) - pow(red_y[i], 2.0));
-    z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(position->img_x_r[i],2.0));
+   float z_pos = position->img_z_r[i];
+    //float z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(red_x[i], 2.0) - pow(red_y[i], 2.0));
+    //z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(position->img_x_r[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     red_x[i] = x_pos - x_offset;
@@ -851,7 +854,7 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
   for(int i=0; i<g_cnt; i++) {
     float x_pos = position->img_x_g[i];
     float y_pos = position->img_y_g[i];
-    float z_pos = sqrt(pow(position->img_z_g[i],2.0) - pow(position->img_x_g[i],2.0));
+    float z_pos = position->img_z_g[i]; //sqrt(pow(position->img_z_g[i],2.0) - pow(position->img_x_g[i],2.0));
 
     green_x[i] = x_pos - x_offset;
     green_z[i] = z_pos - z_offset;
@@ -870,7 +873,7 @@ void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
     // transform the matrix
     float x_pos = position->img_x_b[i];
     float y_pos = position->img_y_b[i];
-    float z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0));
+    float z_pos = position->img_z_b[i]; //sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     blue_x_top[i] = x_pos - x_offset_top;
@@ -883,7 +886,7 @@ void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
   for(int i=0; i<r_cnt_top; i++) {
     float x_pos = position->img_x_r[i];
     float y_pos = position->img_y_r[i];
-    float z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(position->img_x_r[i],2.0));
+    float z_pos = position->img_z_r[i]; //sqrt(pow(position->img_z_r[i],2.0) - pow(position->img_x_r[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     red_x_top[i] = x_pos - x_offset;
@@ -898,7 +901,7 @@ void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
   for(int i=0; i<g_cnt_top; i++) {
     float x_pos = position->img_x_g[i];
     float y_pos = position->img_y_g[i];
-    float z_pos = sqrt(pow(position->img_z_g[i],2.0) - pow(position->img_x_g[i],2.0));
+    float z_pos = position->img_z_g[i]; //sqrt(pow(position->img_z_g[i],2.0) - pow(position->img_x_g[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     green_x_top[i] = x_pos - x_offset;
@@ -1019,6 +1022,7 @@ int leftmost_blue() {
   for(int i=0; i<blue_cnt; i++) {
     if(blue_x[i] <= xpos) {
       xpos = blue_x[i];
+      
       min_idx = i;
     }
   }
@@ -1035,6 +1039,7 @@ int leftmost_blue_top() {
   for(int i=0; i<blue_cnt_top; i++) {
     if(blue_x_top[i] <= xpos) {
       xpos = blue_x_top[i];
+
       min_idx = i;
     }
   }
@@ -1053,6 +1058,23 @@ int target_blue(int policy) {
       return centermost_blue();
     case CLOSEST:
       return closest_ball(BLUE);
+    default:
+      PANIC("Undefined ball policy");
+  }
+}
+
+/*
+ * target_blue(int policy)
+ * policy : LEFTMOST(0), CENTERMOST(1), CLOSEST(2)
+ */
+int target_blue_top(int policy) {
+  switch(policy) {
+    case LEFTMOST:
+      return leftmost_blue_top();
+    case CENTERMOST:
+      return -1;
+    case CLOSEST:
+      return closest_blue_top();
     default:
       PANIC("Undefined ball policy");
   }
@@ -1078,6 +1100,24 @@ int centermost_blue() {
     }
   }
   return min_idx;
+}
+
+int closest_blue_top() {
+      int result_idx = -1;
+
+      if(!blue_cnt_top)
+        return -1;
+
+      float front_dist = blue_z[0];
+
+      for(int i=0; i<blue_cnt_top; i++){
+        if(blue_z_top[i] <= front_dist){
+          front_dist = blue_z_top[i];
+          result_idx = i;
+        }
+      }
+
+      return result_idx;
 }
 
 int closest_ball(enum color ball_color) {
