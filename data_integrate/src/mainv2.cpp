@@ -255,7 +255,7 @@ int main(int argc, char **argv)
           GO_FRONT
 
           /* Initiate SEARCH */          
-          if(timer_ticks - current_ticks >= 80)
+          if(timer_ticks - current_ticks >= 0)
             machine_status = SEARCH;
           
           break;
@@ -291,6 +291,10 @@ int main(int argc, char **argv)
         {
           GO_FRONT
           int target_b = leftmost_blue();
+          int target_b2 = closest_ball(BLUE);
+
+          if(target_b2 != -1) target_b = target_b2;          
+
           if(fabs(blue_x[target_b]) >= 0.20) { machine_status = SEARCH; }
           else {
             if(blue_z[target_b] < 0.2) {
@@ -331,7 +335,8 @@ int main(int argc, char **argv)
         {
           ROLLER_ON
 
-          int target = leftmost_blue();
+          int target = closest_ball(BLUE);
+          if(target==-1) target = leftmost_blue();
 
           if(target == -1){
             machine_status = COLLECT2;
