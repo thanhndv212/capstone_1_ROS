@@ -186,9 +186,6 @@ for( size_t i = 0; i< contours_b.size(); i++ ){
 msg.size_b = num;
     pub.publish(msg);
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
-    imshow("Video Capture",calibrated_frame);
-    imshow("Object Detection_HSV_Blue",hsv_frame_blue);
-    imshow("Canny Edge for Blue Ball", hsv_frame_blue_canny);
     imshow("Result", result);
 
 
