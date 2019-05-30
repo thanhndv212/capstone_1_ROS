@@ -52,8 +52,9 @@ float fball_radius = 0.074 ; // meter: The unit which is used in the initializat
 
 // Initialization of variable for camera calibration paramters: Like we did in our second class, we have to calibrate our main camera, and obtain the intrinsic and distortion parameters in order to undistort the images seen.
 Mat distCoeffs;
-float intrinsic_data[9] = {646.25, 0, 321.3, 0, 650, 245.45, 0, 0, 1};
-float distortion_data[5] = {0.09667, -0.26965, -0.000857, 0, 0};
+float intrinsic_data[9] = {625.65, 0, 323.54, 0, 631.2, 254.9, 0, 0, 1};
+float distortion_data[5] = {0.06263, -0.24675, 0.011155, 0.005235, 0};
+
 
 // Initialization of variable for text drawing: The text which we see at the results is defined here
 double fontScale = 2;
