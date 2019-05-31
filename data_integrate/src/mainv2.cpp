@@ -200,7 +200,7 @@ int main(int argc, char **argv)
     printf("(%s) start\n", TESTENV);
     printf("(%s) camera offset : x=%.3f, y=%.3f, z=%.3f [m]\n", TESTENV, x_offset, y_offset, z_offset);
 
-    #ifdef LIDAR    
+    #ifdef LIDAR
     ros::Subscriber sub = n.subscribe<lidar::coor>("/lidar_coor", 1000, lidar_Callback);
     #endif
 
@@ -254,10 +254,10 @@ int main(int argc, char **argv)
           MSGE("go front 2m first")
           GO_FRONT
 
-          /* Initiate SEARCH */          
-          if(timer_ticks - current_ticks >= 0)
+          /* Initiate SEARCH */
+          if(timer_ticks - current_ticks >= 80)
             machine_status = SEARCH;
-          
+
           break;
         }
         case SEARCH:
@@ -272,7 +272,7 @@ int main(int argc, char **argv)
               else if(xpos_top_b <= -0.3) TURN_LEFT
               else GO_FRONT
             } else {
-              TURN_RIGHT 
+              TURN_RIGHT
             }
           } else {
             if(blue_x[target_b] > 0.15) {
@@ -280,7 +280,7 @@ int main(int argc, char **argv)
             } else if(blue_x[target_b] < -0.15) {
               TURN_LEFT //  ROS_INFO("search - L");
             } else {
-               machine_status = APPROACH; 
+               machine_status = APPROACH;
             }
           }
 
@@ -293,7 +293,7 @@ int main(int argc, char **argv)
           int target_b = leftmost_blue();
           int target_b2 = closest_ball(BLUE);
 
-          if(target_b2 != -1) target_b = target_b2;          
+          if(target_b2 != -1) target_b = target_b2;
 
           if(fabs(blue_x[target_b]) >= 0.20) { machine_status = SEARCH; }
           else {
@@ -301,25 +301,25 @@ int main(int argc, char **argv)
               machine_status = COLLECT;
             }
           }
-      
+
           if(red_in_range()) {
             assert(closest_ball(RED) != -1);
             if(red_z[closest_ball(RED)] <= blue_z[target_b]) {
               red_phase2 = false;
               machine_status = RED_AVOIDANCE;
             }
-          } 
+          }
 
           break;
         }
         case RED_AVOIDANCE:
-        {          
+        {
           if(!red_in_range() && !red_phase2){
             red_phase2 = true;
             printf("(%s) RED_AVOIDANCE_2\n", TESTENV);
             current_ticks = timer_ticks;
           }
-  
+
           if(!red_phase2) TURN_LEFT
           else {
             GO_FRONT
@@ -382,8 +382,8 @@ int main(int argc, char **argv)
           #ifndef LIDAR
           printf("(%s) LIDAR_RETURN : No LIDAR detected. Exitting.\n", TESTENV);
           machine_status = SEARCH_GREEN;
-    
-          #else      
+
+          #else
           if(theta_abs > 190.0f) {
             MSGE("LIDAR_RETURN : turn left")
             TURN_LEFT
@@ -439,7 +439,7 @@ if(mid_z > 2.0f) {
   float target_theta = RAD2DEG(atan(mid_x/mid_z));
   if(target_theta > 10.0f) TURN_RIGHT
   else if(target_theta < -10.0f) TURN_LEFT
-  else GO_FRONT 
+  else GO_FRONT
 
 
 } else {
@@ -466,7 +466,7 @@ if(mid_z > 2.0f) {
                 GO_FRONT
                 MSGE("go_front")
               }
-}       
+}
               if(0.5*(zg1+zg2) <= 0.8){ printf("goal distance = %.4f\n", 0.5*(zg1+zg2)); goal_z = 0.5*(zg1+zg2); current_ticks = timer_ticks; machine_status = RELEASE; } //machine_status = APPROACH_GREEN;
 
             if(red_in_range())
@@ -489,10 +489,10 @@ if(mid_z > 2.0f) {
               TURN_RIGHT
               if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : turn right\n", TESTENV);
             } else if(xpos < -0.2) {
-              TURN_LEFT 
+              TURN_LEFT
               if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : turn_left\n", TESTENV);
             } else {
-              GO_FRONT 
+              GO_FRONT
               if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : go_front\n", TESTENV);
             }
 
@@ -572,7 +572,7 @@ if(mid_z > 2.0f) {
                   goal_x = mid_x_trn_;
                   goal_z = mid_z_trn_;
                   printf("(%s) angular offset = %.3f deg, x_ofs = %.3f, z_ofs = %.3f\n", TESTENV, RAD2DEG(degree_), mid_x_trn_, mid_z_trn_);
-                
+
                   machine_status = APPROACH_GREEN_2;
                   current_ticks = timer_ticks;
 
@@ -581,12 +581,12 @@ if(mid_z > 2.0f) {
 
               int target = closest_ball(GREEN);
               float t_z = green_z[target];
-              
+
              break;
             }
             default:
             {
-              /* Evaluation over UNRELIABLE openCV */              
+              /* Evaluation over UNRELIABLE openCV */
               printf("(%s) APPROACH_GREEN : evaluation in unreliable mode : there are %d green balls\n",TESTENV, green_cnt);
               float xg1 = green_x[leftmost_green()];
               float xg2 = green_x[rightmost_green()];
@@ -597,7 +597,7 @@ if(mid_z > 2.0f) {
               float mid_z = 0.5 * (zg1 + zg2);
 
               float degree_ = atan((zg2-zg1)/(xg2-xg1));
-              
+
               float mid_x_trn_ = mid_x * cos(degree_) + mid_z * sin(degree_);
               float mid_z_trn_ = mid_z * cos(degree_) - mid_x * sin(degree_);
 
@@ -606,7 +606,7 @@ if(mid_z > 2.0f) {
               goal_z = mid_z_trn_;
 
               printf("(%s) angular offset = %.3f deg, x_ofs = %.3f, z_ofs = %.3f\n", TESTENV, RAD2DEG(degree_), mid_x_trn_, mid_z_trn_);
-                
+
               machine_status = APPROACH_GREEN_2;
               current_ticks = timer_ticks;
 
@@ -614,12 +614,12 @@ if(mid_z > 2.0f) {
             }
 
           }
- 
+
           break;
         }
 
         /*
-         * APPROACH_GREEN_2 
+         * APPROACH_GREEN_2
          * open-loop position control based on position evaluation of APPROACH_GREEN_1
          * 1) ROTATE theta-ofs, 2) TRANSLATE X-ofs, 3) phase shift to APPROACH_GREEN_3
          */
@@ -638,7 +638,7 @@ if(mid_z > 2.0f) {
             MSGE("openloop - translation")
             if(goal_x < 0) TRANSLATE_LEFT
             else TRANSLATE_RIGHT
-          } else {        
+          } else {
             printf("(%s) openloop - aligned %.3f degrees, %.3f meters\n",TESTENV, goal_theta, goal_x);
             machine_status = APPROACH_GREEN_3;
             current_ticks = timer_ticks;
@@ -676,7 +676,7 @@ if(mid_z > 2.0f) {
           float angular_ofs = RAD2DEG(atan((zg2 - zg1) / (xg2 - xg1)));
 
           if(!(timer_ticks%10)) printf("(%s) angle = %.4f\n", TESTENV, angular_ofs);
-          
+
           if(angular_ofs < -1.6f) {
             MSGE("feedback - rotation CW")
             TURN_RIGHT_SLOW
@@ -748,13 +748,13 @@ if(mid_z > 2.0f) {
           if(theta < -1.5f) TURN_RIGHT_SLOW
           else if(theta > 1.5f) TURN_LEFT_SLOW
           else { current_ticks = timer_ticks; machine_status = RELEASE; }
-          
+
           break;
-        }  
+        }
         #endif
 
         case RELEASE:
-        { 
+        {
           #ifndef LIDAR
           uint32_t goal_front_ticks = (uint32_t) (90.0f * (goal_z));
 
@@ -784,8 +784,8 @@ if(mid_z > 2.0f) {
             PANIC("RELEASE : terminating. should have released 3 balls.")
 	  }
           #endif
-          
-          break; 
+
+          break;
         }
 
         default:
@@ -795,7 +795,7 @@ if(mid_z > 2.0f) {
 
 
       /* Send control data */
-      
+
       #ifdef MYRIO
       if(use_myrio) {
       size_t written = write(c_socket, data, sizeof(data));
@@ -958,13 +958,13 @@ bool red_in_range() {
   return false;
 }
 
-/* 
+/*
  * leftmost green()
  * return leftmost blue visible in sight
  * return -1 if invisible
  */
 int leftmost_green() {
-  if(!green_cnt) 
+  if(!green_cnt)
     return -1;
 
   float xpos = green_x[0];
@@ -982,7 +982,7 @@ int leftmost_green() {
 int rightmost_green() {
   if(!green_cnt)
     return -1;
-  
+
   float xpos = green_x[0];
   int max_idx = 0;
 
@@ -1011,13 +1011,13 @@ int leftmost_green_top() {
 }
 
 
-/* 
+/*
  * leftmost blue()
  * return leftmost blue visible in sight
  * return -1 if invisible
  */
 int leftmost_blue() {
-  if(!blue_cnt) 
+  if(!blue_cnt)
     return -1;
 
   float xpos = blue_x[0];
@@ -1026,7 +1026,7 @@ int leftmost_blue() {
   for(int i=0; i<blue_cnt; i++) {
     if(blue_x[i] <= xpos) {
       xpos = blue_x[i];
-      
+
       min_idx = i;
     }
   }
