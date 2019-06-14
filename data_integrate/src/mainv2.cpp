@@ -133,7 +133,7 @@ bool use_myrio = true;
 /* Main routine */
 int main(int argc, char **argv)
 {
-    signal(SIGSEGV, sigsegv_handler);
+    signal(SIGSEGV, sigsegv_handler); 	//인덱스 참조 잘못했을 때 프로그램 terminate 방
 
     ros::init(argc, argv, "data_integation");
     ros::NodeHandle n;
@@ -448,12 +448,12 @@ if(mid_z > 2.0f) {
 		if(theta < -15.0f) TURN_RIGHT
                 else TURN_RIGHT_SLOW
                 MSGE("turn_right_slow")
-                if(SG_sema) dirtybit_SG = true;
+            //    if(SG_sema) dirtybit_SG = true;
               } else if(theta > 10.0f) {
                 if(theta > 15.0f) TURN_LEFT
 		else TURN_LEFT_SLOW
                 MSGE("turn_left_slow")
-                if(SG_sema) dirtybit_SG = true;
+              //  if(SG_sema) dirtybit_SG = true;
               } else if(mid_x < -0.02f) {
                 SG_sema = 1;
                 if(mid_x < -0.10f) TRANSLATE_LEFT_3x
@@ -504,6 +504,7 @@ if(mid_z > 2.0f) {
 #endif
           break;
         }
+		      /*
         case APPROACH_GREEN:
         {
           switch(green_cnt) {
@@ -752,6 +753,7 @@ if(mid_z > 2.0f) {
           break;
         }
         #endif
+*/
 
         case RELEASE:
         {
