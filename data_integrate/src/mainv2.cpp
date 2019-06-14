@@ -396,7 +396,7 @@ int main(int argc, char **argv)
           printf("(%s) LIDAR_RETURN : No LIDAR detected. Exitting.\n", TESTENV);
           machine_status = SEARCH_GREEN;
 
-          #else
+          #else //보고서 
           if(theta_abs > 190.0f) {
             MSGE("LIDAR_RETURN : turn left")
             TURN_LEFT
@@ -504,18 +504,20 @@ else {
 
         case RELEASE:
         {
-          #ifndef LIDAR
-          uint32_t goal_front_ticks = (uint32_t) (90.0f * (goal_z));
+//웹캠만으로 멀리있는 초록공이 안보일때 Backup plan으로 라이다를 사용해서 Return하도록 하려고 코드를 짰지만,
+//실제 데모장에서 초록공 Detection 문제가 없어서 라이다 코드는 사용하지 않았다.           
+	  #ifndef LIDAR
+          uint32_t goal_front_ticks = (uint32_t) (90.0f * (goal_z)); //Search_Green에서 정의된 goal_z 값을 사용하여 남은 직진 거리 정함
 
-          if(timer_ticks-current_ticks < goal_front_ticks) {
+          if(timer_ticks-current_ticks < goal_front_ticks) { //직진 구간
             MSGE("RELEASE - go front")
             GO_FRONT
-          } else if(timer_ticks - current_ticks < 100 + goal_front_ticks) {
+          } else if(timer_ticks - current_ticks < 100 + goal_front_ticks) { //도착한 뒤에 공 뱉기
             MSGE("RELEASE - roller_reverse")
             ROLLER_REVERSE
-          } else {
+          } else { //시간 얼마나 걸렸는지 프린트하고 종료 
 	    printf("(%s) elapsed time = %.4f sec\n", TESTENV, 0.025 * timer_ticks);
-            PANIC("RELEASE_TERMINATE : should have released 3 balls.") //Panic room 보셨나요 교수님? 
+            PANIC("RELEASE_TERMINATE : should have released 3 balls.") 
           }
           #else
           if(xpos_abs > 0.02f) {
@@ -544,7 +546,8 @@ else {
 
 
       /* Send control data */
-
+     /*myRIO에 array 보내는 코드*/
+	    
       #ifdef MYRIO
       if(use_myrio) {
       size_t written = write(c_socket, data, sizeof(data)); //write 라는게 TCP/IP에 데이타를 보냄, 
@@ -553,7 +556,7 @@ else {
       }
       #endif
 
-	    ros::Duration(DURATION).sleep();
+	    ros::Duration(DURATION).sleep(); // 1/40초를 기다리게 한다 (time_tick 주기 맞춰주기 위함) //
 	    ros::spinOnce();
       timer_ticks++;
     }
@@ -662,7 +665,7 @@ void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
     green_z_top[i] = z_pos - z_offset;
   }
 }
-
+//리포트 
 void camera_Callback_counter(const core_msgs::roller_num::ConstPtr& cnt)
 {
   int shift = cnt->size_b;
@@ -856,6 +859,7 @@ int centermost_blue() {
   return min_idx;
 }
 
+// 위에 있는 카메라로 봤을때 가장 가까이 있는 Blue ball array 의 index를 반환한다. 없으면 return -1 //
 int closest_blue_top() {
       int result_idx = -1;
 
@@ -874,6 +878,7 @@ int closest_blue_top() {
       return result_idx;
 }
 
+// 아래있는 카메라로 봤을때 가장 가까이 있는 ball color 를 가진 공에 대한 array 의 index를 반환한다. 없으면 return -1 //
 int closest_ball(enum color ball_color) {
   switch(ball_color) {
     case BLUE:
