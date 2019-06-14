@@ -451,7 +451,7 @@ int main(int argc, char **argv)
 //0.4초마다 프린트해주는거//
               float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1))); //중점이랑 카메라 시야 사이의 각도//
 //얼라인 할때 중점이 2미터 밖에 있으면 타깃 theta가 +_10도 안에 들어오게 align 하고 2미터 안에 들어올때까지 전진//
-//
+
 if(mid_z > 2.0f) {
   float target_theta = RAD2DEG(atan(mid_x/mid_z));
   if(target_theta > 10.0f) TURN_RIGHT
@@ -460,318 +460,47 @@ if(mid_z > 2.0f) {
 
 
 } 
+//중점이 2미터 안에 있을때, theta가 10도에서 15도 사이 보다 작으면 
 else {
 
               if(theta < -10.0f){
-		if(theta < -15.0f) TURN_RIGHT
-                else TURN_RIGHT_SLOW
+		if(theta < -15.0f) TURN_RIGHT //15도 보다 클때 빠르게 회전//
+                else TURN_RIGHT_SLOW //10<theta<15 일때 느리게 회전: 정교한 alignment를 하기 위해//
                 MSGE("turn_right_slow")
-            //    if(SG_sema) dirtybit_SG = true;
+
               } else if(theta > 10.0f) {
                 if(theta > 15.0f) TURN_LEFT
 		else TURN_LEFT_SLOW
                 MSGE("turn_left_slow")
-              //  if(SG_sema) dirtybit_SG = true;
+ 
               } else if(mid_x < -0.02f) {
-                SG_sema = 1;
                 if(mid_x < -0.10f) TRANSLATE_LEFT_3x
                 else TRANSLATE_LEFT //_SLOW
               } else if(mid_x > 0.02f) {
-                SG_sema = 1;
                 if(mid_x > 0.10f) TRANSLATE_RIGHT_3x
                 else TRANSLATE_RIGHT //_SLOW
               } else {
                 GO_FRONT
                 MSGE("go_front")
               }
-}
-              if(0.5*(zg1+zg2) <= 0.8){ printf("goal distance = %.4f\n", 0.5*(zg1+zg2)); goal_z = 0.5*(zg1+zg2); current_ticks = timer_ticks; machine_status = RELEASE; } //machine_status = APPROACH_GREEN;
 
+}
+              if(0.5*(zg1+zg2) <= 0.8){ printf("goal distance = %.4f\n", 0.5*(zg1+zg2)); goal_z = 0.5*(zg1+zg2); 
+		current_ticks = timer_ticks; machine_status = RELEASE; } //machine_status = APPROACH_GREEN;
+
+		    //중점이 80cm 안으로 들어오면 state transition to "RELEASE" //
+		    //거리를 goal_z에 저장한다//
             if(red_in_range())
-              machine_status = RED_AVOIDANCE;
+              machine_status = RED_AVOIDANCE; //Search_Green 하면서 RED_AVOIDANCE 도 실행 
 
             break; //여기까지 초록공 Search & Alignment Case0: search, case1: approach, case 2: approach & align 
             }
           }
-
-
-
-#ifdef UNUSED
-          int target_g = leftmost_green();
-          int target_g_top = leftmost_green_top();
-          if(target_g_top >= 0) {
-            float xpos = green_x_top[target_g_top];
-            float zpos = green_z_top[target_g_top];
-
-            if(xpos > 0.2){
-              TURN_RIGHT
-              if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : turn right\n", TESTENV);
-            } else if(xpos < -0.2) {
-              TURN_LEFT
-              if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : turn_left\n", TESTENV);
-            } else {
-              GO_FRONT
-              if(!(timer_ticks%10)) printf("(%s) SEARCH_GREEN : go_front\n", TESTENV);
-            }
-
-            if(zpos <= 0.8) {
-              machine_status = APPROACH_GREEN;
-            }
-
-          } else TURN_RIGHT
-#endif
           break;
         }
-		      /*
-        case APPROACH_GREEN:
-        {
-          switch(green_cnt) {
-            case 0:
-            {
-              TURN_RIGHT
-              if(!(timer_ticks % 10)) printf("(%s) APPROACH_GREEN : green_cnt = 0, turn right\n", TESTENV);
-              break;
-            }
-            case 1:
-            {
-              float xg1 = green_x[0];
-              float zg1 = green_z[0];
-
-              if(xg1 > 0 || 1) {
-                TURN_RIGHT_SLOW
-                if(!(timer_ticks%10)) printf("(%s) APPROACH_GREEN : green_cnt = 1, turn_right\n", TESTENV);
-              } else if(xg1 < 0 && 0) {
-                TURN_LEFT_SLOW
-                if(!(timer_ticks%10)) printf("(%s) APPROACH_GREEN : green_cnt = 1, turn_left\n", TESTENV);
-              }
-
-              break;
-            }
-            case 2:
-            {
-              if(!(timer_ticks%10)) printf("(%s) APPROACH_GREEN : green_cnt = 2\n", TESTENV);
-
-              float xg1 = green_x[0];
-              float xg2 = green_x[1];
-              float zg1 = green_z[0];
-              float zg2 = green_z[1];
-
-              /* Make sure one ball is recognized as 2 */
-              if(DIST(xg1,zg1,xg2,zg2) <= 0.05) { TURN_RIGHT break; }
-
-              float degree = atan((zg2-zg1)/(xg2-xg1));
-
-              float mid_x = 0.5 * (xg1 + xg2);
-              float mid_z = 0.5 * (zg1 + zg2);
-
-              float mid_x_trn = mid_x * cos(degree) + mid_z * sin(degree);
-              float mid_z_trn = mid_z * cos(degree) - mid_x * sin(degree);
-
-              if(mid_x >= 0.1f) {
-                if(!(timer_ticks%10)) printf("(%s) midpoint_x = %.3f : turn_right\n", TESTENV, mid_x);
-                TURN_RIGHT_SLOW
-              } else if(mid_x <= -0.1f) {
-                TURN_LEFT_SLOW
-                if(!(timer_ticks%10)) printf("(%s) midpoint_x = %.3f : turn_left\n", TESTENV, mid_x);
-              } else {
-                if(abs((green_x[0])<= 0.25 && abs((green_x[1])<=0.25) )) {
-                  float xg1_ = green_x[0];
-                  float xg2_ = green_x[1];
-                  float zg1_ = green_z[0];
-                  float zg2_ = green_z[1];
-
-                  float degree_ = atan((zg2-zg1)/(xg2-xg1));
-                  float mid_x_ = 0.5 * (xg1 + xg2);
-                  float mid_z_ = 0.5 * (zg1 + zg2);
-
-                  float mid_x_trn_ = mid_x * cos(degree_) + mid_z * sin(degree_);
-                  float mid_z_trn_ = mid_z * cos(degree_) - mid_x * sin(degree_);
-
-                  goal_theta = RAD2DEG(degree_);
-                  goal_x = mid_x_trn_;
-                  goal_z = mid_z_trn_;
-                  printf("(%s) angular offset = %.3f deg, x_ofs = %.3f, z_ofs = %.3f\n", TESTENV, RAD2DEG(degree_), mid_x_trn_, mid_z_trn_);
-
-                  machine_status = APPROACH_GREEN_2;
-                  current_ticks = timer_ticks;
-
-                }
-              }
-
-              int target = closest_ball(GREEN);
-              float t_z = green_z[target];
-
-             break;
-            }
-            default:
-            {
-              /* Evaluation over UNRELIABLE openCV */
-              printf("(%s) APPROACH_GREEN : evaluation in unreliable mode : there are %d green balls\n",TESTENV, green_cnt);
-              float xg1 = green_x[leftmost_green()];
-              float xg2 = green_x[rightmost_green()];
-              float zg1 = green_z[leftmost_green()];
-              float zg2 = green_z[rightmost_green()];
-
-              float mid_x = 0.5 * (xg1 + xg2);
-              float mid_z = 0.5 * (zg1 + zg2);
-
-              float degree_ = atan((zg2-zg1)/(xg2-xg1));
-
-              float mid_x_trn_ = mid_x * cos(degree_) + mid_z * sin(degree_);
-              float mid_z_trn_ = mid_z * cos(degree_) - mid_x * sin(degree_);
-
-              goal_theta = RAD2DEG(degree_);
-              goal_x = mid_x_trn_;
-              goal_z = mid_z_trn_;
-
-              printf("(%s) angular offset = %.3f deg, x_ofs = %.3f, z_ofs = %.3f\n", TESTENV, RAD2DEG(degree_), mid_x_trn_, mid_z_trn_);
-
-              machine_status = APPROACH_GREEN_2;
-              current_ticks = timer_ticks;
-
-              break;
-            }
-
-          }
-
-          break;
-        }
-
-        /*
-         * APPROACH_GREEN_2
-         * open-loop position control based on position evaluation of APPROACH_GREEN_1
-         * 1) ROTATE theta-ofs, 2) TRANSLATE X-ofs, 3) phase shift to APPROACH_GREEN_3
-         */
-        case APPROACH_GREEN_2:
-        {
-          uint32_t goal_rotate_ticks = (uint32_t) (ROTATE_CONST_SLOW * fabs(goal_theta));
-          uint32_t goal_translate_ticks = (uint32_t) (TRANSLATE_CONST_SLOW * fabs(goal_x));
-
-          if(!(timer_ticks %10)) printf("(%s) estimated rotate ticks = %d, translate ticks = %d\n",TESTENV,(int) goal_rotate_ticks, (int) goal_translate_ticks);
-
-          if(timer_ticks - current_ticks < goal_rotate_ticks) {
-            MSGE("openloop - rotation")
-            if(goal_theta > 0) TURN_LEFT_SLOW
-            else if(goal_theta < 0) TURN_RIGHT_SLOW
-          } else if((timer_ticks - current_ticks >= goal_rotate_ticks) && (timer_ticks - current_ticks < goal_rotate_ticks + goal_translate_ticks)) {
-            MSGE("openloop - translation")
-            if(goal_x < 0) TRANSLATE_LEFT
-            else TRANSLATE_RIGHT
-          } else {
-            printf("(%s) openloop - aligned %.3f degrees, %.3f meters\n",TESTENV, goal_theta, goal_x);
-            machine_status = APPROACH_GREEN_3;
-            current_ticks = timer_ticks;
-          }
-          break;
-        }
-
-        /*
-         * APPROACH_GREEN_3
-         * feedback position(angular) control using CAM_btm
-         */
-        case APPROACH_GREEN_3:
-        {
-          #ifdef UNRELIABLE
-          int idx_close = closest_ball(GREEN);
-          int idx_far = furthest_green();
-
-          float xg1 = green_x[idx_close];
-          float zg1 = green_z[idx_close];
-          float xg2 = green_x[idx_far];
-          float zg2 = green_z[idx_far];
-          #else
-          float xg1 = green_x[0];
-          float zg1 = green_z[0];
-          float xg2 = green_x[1];
-          float zg2 = green_z[1];
-          #endif
-
-          if(green_cnt < 2) {
-            printf("(%s) APPROACH_GREEN : there are %d balls. phase out to APPROACH_GREEN\n", TESTENV, green_cnt);
-            machine_status = APPROACH_GREEN;
-            break;
-          }
-
-          float angular_ofs = RAD2DEG(atan((zg2 - zg1) / (xg2 - xg1)));
-
-          if(!(timer_ticks%10)) printf("(%s) angle = %.4f\n", TESTENV, angular_ofs);
-
-          if(angular_ofs < -1.6f) {
-            MSGE("feedback - rotation CW")
-            TURN_RIGHT_SLOW
-          } else if(angular_ofs > 1.6f) {
-            MSGE("feedback - rotation CCW")
-            TURN_LEFT_SLOW
-          } else {
-            printf("(%s) finished alignment. angular deviation = %.4f deg\n",TESTENV, angular_ofs);
-            machine_status = APPROACH_GREEN_4;
-          }
-
-          break;
-        }
-
-        case APPROACH_GREEN_4:
-        {
-          #ifdef UNRELIABLE
-          int idx_close = closest_ball(GREEN);
-          int idx_far = furthest_green();
-
-          float xg1 = green_x[idx_close];
-          float zg1 = green_z[idx_close];
-          float xg2 = green_x[idx_far];
-          float zg2 = green_z[idx_far];
-          #else
-          float xg1 = green_x[0];
-          float xg2 = green_x[1];
-          float zg1 = green_z[0];
-          float zg2 = green_z[1];
-          #endif
-
-          float x_ofs = 0.5f * (xg1 + xg2);
-
-          if(!(timer_ticks%10)) printf("(%s) X_offset = %.4f[m]\n", TESTENV, x_ofs);
-
-          if(x_ofs > 0.01f) {
-            MSGE("feedback - translation R")
-            TRANSLATE_RIGHT
-          } else if(x_ofs < -0.01f) {
-            MSGE("feedback - translation L")
-            TRANSLATE_LEFT
-          } else {
-            #ifndef UNRELIABLE
-            machine_status = RELEASE;
-            current_ticks = timer_ticks;
-            #else
-            machine_status = APPROACH_GREEN_5;
-            machine_status = RELEASE;
-            #endif
-          }
-          break;
-        }
-
-        #ifdef UNRELIABLE
-        case APPROACH_GREEN_5:
-        {
-          MSGE("APPROACH_GREEN - 5 : Control over UNRELIABLE actuator")
-
-          float xg1 = green_x[0];
-          float xg2 = green_x[1];
-          float zg1 = green_z[0];
-          float zg2 = green_z[1];
-
-          if(!(timer_ticks%10)) printf("(%.3f, %.3f), (%.3f, %.3f)\n", xg1, zg1, xg2, zg2);
-
-          assert(DIST(xg1,zg1,xg2,zg2)>=0.05);
-          float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1)));
-          if(!(timer_ticks%10)) printf("theta = %.3f\n", theta);
-          if(theta < -1.5f) TURN_RIGHT_SLOW
-          else if(theta > 1.5f) TURN_LEFT_SLOW
-          else { current_ticks = timer_ticks; machine_status = RELEASE; }
-
-          break;
-        }
-        #endif
-*/
+	      
+		      
+		      
 
         case RELEASE:
         {
@@ -786,7 +515,7 @@ else {
             ROLLER_REVERSE
           } else {
 	    printf("(%s) elapsed time = %.4f sec\n", TESTENV, 0.025 * timer_ticks);
-            PANIC("RELEASE_TERMINATE : should have released 3 balls.")
+            PANIC("RELEASE_TERMINATE : should have released 3 balls.") //Panic room 보셨나요 교수님? 
           }
           #else
           if(xpos_abs > 0.02f) {
