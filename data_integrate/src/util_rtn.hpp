@@ -58,8 +58,7 @@ enum status {
   COLLECT, COLLECT2,
   /* Return to goal pos */
   LIDAR_RETURN,
-  SEARCH_GREEN, APPROACH_GREEN, APPROACH_GREEN_2,
-  APPROACH_GREEN_3, APPROACH_GREEN_4, APPROACH_GREEN_5,
+  SEARCH_GREEN,
   RELEASE
 };
 
@@ -79,24 +78,26 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position);
 void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position);
 void camera_Callback_counter(const core_msgs::roller_num::ConstPtr& cnt);
 
-bool red_in_range();
-bool ball_in_range(enum color ball_color);
-int closest_ball(enum color ball_color);
-int centermost_green();
-int leftmost_green();
-int rightmost_green();
-int leftmost_green_top();
-int centermost_green();
-int closest_green();
+bool red_in_range(); //if red ball position x= +-25 cm, z<=30 cm 일때 true , else false.
+bool ball_in_range(enum color ball_color); 
+             //if blue ball x= +-3.4 cm, z<=30 cm 일때 true, else false//
+             //elseif red ball --> red_in_range//
+             //else false//
+                        
+int closest_ball(enum color ball_color); //아래있는 카메라로 봤을때 가장 가까이 있는 ball color 를 가진 공에 대한 array의 index를 반환한다. 없으면 return -1//
+int centermost_green(); //아래있는 카메라로 봤을때 가장 가운데에 있는 Green ball에 대한 array의 index를 반환한다. 없으면 return -1//
+int leftmost_green(); //아래있는 카메라로 봤을때 가장 왼쪽에 있는 Green ball에 대한 array의 index를 반환한다. 없으면 return -1//
+int rightmost_green(); //아래있는 카메라로 봤을때 가장 오른쪽에 있는 Green ball에 대한 array의 index를 반환한다. 없으면 return -1//
+int leftmost_green_top(); //위에있는 카메라로 봤을때 가장 가운데에 있는 Green ball에 대한 array의 index를 반환한다. 없으면 return -1//
+int closest_green(); //아래있는 카메라로 봤을때 가장 가까이 있는 Green ball에 대한 array의 index를 반환한다. 없으면 return -1//
 
-int target_blue(int policy);
+int target_blue(int policy); // 제일 왼쪽, 가운데, 가까운 파란색 공의 index
 
-int leftmost_blue();
-int centermost_blue();
-int leftmost_blue_top();
+int leftmost_blue(); //아래있는 카메라로 봤을때 가장 왼쪽에 있는 Blue ball에 대한 array의 index를 반환한다. 없으면 return -1//
+int centermost_blue(); //아래있는 카메라로 봤을때 가장 가운데에 있는 Blue ball에 대한 array의 index를 반환한다. 없으면 return -1//
+int leftmost_blue_top(); //위에있는 카메라로 봤을때 가장 왼쪽에 있는 Blue ball에 대한 array의 index를 반환한다. 없으면 return -1//
 const std::string cond[] = {"INIT", "SEARCH", "APPROACH", "RED_AVOIDANCE", "COLLECT", "COLLECT2", "LIDAR_RETURN", "SEARCH_GREEN", "APPROACH_GREEN", "APPROACH_GREEN_2", "APPROACH_GREEN_3", "APPROACH_GREEN_4", "APPROACH_GREEN_5" , "RELEASE" };
 
-int furthest_green();
 
 
 #endif
