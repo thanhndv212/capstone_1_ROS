@@ -133,14 +133,14 @@ bool use_myrio = true;
 /* Main routine */
 int main(int argc, char **argv)
 {
-    signal(SIGSEGV, sigsegv_handler); 	//인덱스 참조 잘못했을 때 프로그램 terminate 방
+    signal(SIGSEGV, sigsegv_handler); 	//인덱스 참조 잘못했을 때 프로그램 terminate 방지
 
     ros::init(argc, argv, "data_integation");
     ros::NodeHandle n;
 
     /* Argument parsing */
     int tag;
-
+//143~198: Argument 붙이는거 타임아웃 지정, 위치 보정(offset) 
     char x_offset_[5];
     char y_offset_[5];
     char z_offset_[5];
@@ -149,25 +149,27 @@ int main(int argc, char **argv)
     char downside_angle_[6];
     char timeout_str[6];
 
-    int flag = 0;
-
+    int flag = 0; //boolean variable to check argument content existence 
+//포인터 안에 내용을 다 0으로 만든다 (initializing pointers)
     memset(x_offset_, 0, 6);
     memset(y_offset_, 0, 6);
     memset(z_offset_, 0, 6);
     memset(downside_angle_, 0, 6);
 
+
+//getopt 관련된거 리포트 Appendix a-1 참조 
     while((tag = getopt(argc, argv, "x:z:X:Z:mT:")) != -1) {
       switch(tag) {
         case 'x':
-          flag |= 0x8;
+          flag |= 0x8; // 1 0 0 0
           memcpy(x_offset_, optarg, strlen(optarg));
           break;
         case 'z':
-          flag |= 0x2;
+          flag |= 0x2; // 0 0 1 0 
           memcpy(z_offset_, optarg, strlen(optarg));
           break;
         case 'X':
-          flag |= 0x10;
+          flag |= 0x10; // 1 0 0 0 0
           memcpy(x_offset_top_, optarg, strlen(optarg));
           break;
         case 'Z':
@@ -184,42 +186,40 @@ int main(int argc, char **argv)
       }
     }
 
-    x_offset = atof(x_offset_);
+    x_offset = atof(x_offset_); //atof : alphabet to float
     z_offset = atof(z_offset_);
     x_offset_top = atof(x_offset_top_);
     z_offset_top = atof(z_offset_top_);
-    timeout = atoi(timeout_str);
+    timeout = atoi(timeout_str); //atoi : alphabet to int
 
-    if(!(flag & 0x8)) x_offset = -0.01f;
+//if flag not set, use default values as given:
+    if(!(flag & 0x8)) x_offset = -0.01f; 
     if(!(flag & 0x2)) z_offset = 0.18f;
     if(!(flag & 0x10)) x_offset_top = 0;
     if(!(flag & 0x20)) z_offset_top = 0;
     if(!(flag & 0x40)) timeout = 60;
 
+//debugging aiding message
+    printf("(%s) start\n", TESTENV); //start message
+    printf("(%s) camera offset : x=%.3f, y=%.3f, z=%.3f [m]\n", TESTENV, x_offset, y_offset, z_offset); //print offset values
 
-    printf("(%s) start\n", TESTENV);
-    printf("(%s) camera offset : x=%.3f, y=%.3f, z=%.3f [m]\n", TESTENV, x_offset, y_offset, z_offset);
-
-    #ifdef LIDAR
-    ros::Subscriber sub = n.subscribe<lidar::coor>("/lidar_coor", 1000, lidar_Callback);
-    #endif
-
+//Subscribing to necessary ROS topics given WEBCAM defined
     #ifdef WEBCAM
     ros::Subscriber sub1 = n.subscribe<core_msgs::ball_position>("/position", 1000, camera_Callback);
     ros::Subscriber sub2 = n.subscribe<core_msgs::ball_position_top>("/position_top", 1000, camera_Callback_top);
     ros::Subscriber sub3 = n.subscribe<core_msgs::roller_num>("/roller_num",1000, camera_Callback_counter);
     #endif
-
-		dataInit();
-
+	
+//MYRIO가 define 되면, Myrio와 통신하기 위한 소켓을 생성하고, 초기화 시킨다 
     #ifdef MYRIO
     if(use_myrio) {
     printf("(%s) Connecting to %s:%d\n", TESTENV, IPADDR, PORT);
     c_socket = socket(PF_INET, SOCK_STREAM, 0);
     c_addr.sin_addr.s_addr = inet_addr(IPADDR);
     c_addr.sin_family = AF_INET;
-    c_addr.sin_port = htons(PORT);
+    c_addr.sin_port = htons(PORT); //여기까지 초기화
 
+//앞서 초기화한 세팅으로 컨넥트를 하는데, 컨넥트라는게 실패하면 -1 반환하고 fail 메세지 프린트하고 종료. 성공하면? 패스하겠지 컨넥트 됐다고 프린트. 
     if(connect(c_socket, (struct sockaddr*) &c_addr, sizeof(c_addr)) == -1){
       printf("(%s) Failed to connect\n", TESTENV);
       close(c_socket);
@@ -228,43 +228,50 @@ int main(int argc, char **argv)
     printf("(%s) Connected to %s:%d\n", TESTENV, IPADDR, PORT);
     }
     #endif
-
+//소켓 끝
+	
+	
     printf("(%s) Entering main routine...\n", TESTENV);
     printf("(%s) state = INIT\n", TESTENV);
 
-    current_ticks = timer_ticks;
+    current_ticks = timer_ticks; //   1 타임 틱이 1/40초 
 
     while(ros::ok){
-      dataInit();
-
+      dataInit(); //TCP IP 에서 24byte 를 주는데 처음에 그걸다 0으로 초기화 해준다.
+    //근데 와일 루프 스핀할때마다 한번씩 보내거든 근데 앞에서 데이타 이닛을 안해주면 다른거랑 겹쳐서 같이 감 (이상한 데이타 허허) 
       if(recent_status != machine_status)
         std::cout << "(" << TESTENV << ") state = " << cond[(recent_status = machine_status)] << std::endl;
-
-      if(timer_ticks > 40 * timeout && !return_mode) {
+//스테이트가 바뀔때 프린트한다 (state transition 확인하기 위함)
+     
+	if(timer_ticks > 40 * timeout && !return_mode) {
         printf("(%s) switching to return mode after %.2f s of timeout\n", TESTENV, (float) timeout);
         machine_status = LIDAR_RETURN;
         return_mode = 1;
       }
+//타임아웃 설정한 이유: 카운터 문제에 대한 Backup Plan
 
-
+      /* switching between states */
+	    
+//switch는 machine_status 값에 따라서 state를 결정해주는 함수이다. 
       /* switching between states */
       switch(machine_status) {
         case INIT:
         {
-          MSGE("go front 2m first")
+          MSGE("go front 2m first") //printf 랑 비슷하지만, (디버깅 메세지가 10번 뜰걸 한번만 뜨게 해줌)
           GO_FRONT
 
           /* Initiate SEARCH */
-          if(timer_ticks - current_ticks >= 80)
+          if(timer_ticks - current_ticks >= 80) // 2초 짜리
             machine_status = SEARCH;
-
+//init --> SEARCH 로 넘어감
           break;
         }
+		      
         case SEARCH:
         {
           int target_b = target_blue(POLICY); //leftmost_blue();
           int target_b_top = target_blue_top(POLICY); //leftmost_blue_top();
-
+// 서치 부분은 보고서에 있다.
           if(target_b < 0) {
             if(target_b_top >= 0) {
               float xpos_top_b = blue_x_top[target_b_top];
@@ -317,14 +324,14 @@ int main(int argc, char **argv)
           if(!red_in_range() && !red_phase2){
             red_phase2 = true;
             printf("(%s) RED_AVOIDANCE_2\n", TESTENV);
-            current_ticks = timer_ticks;
+            current_ticks = timer_ticks; //timer_ticks 현재 시간 (실시간), current_ticks 는 timer_tick에서 그때그때 받아온 시간 (실시간으로 안바뀜)
           }
 
           if(!red_phase2) TURN_LEFT
           else {
             GO_FRONT
-
-            if(timer_ticks - current_ticks > DISTANCE_TICKS) {
+//Return Mode (red avoidance)가 켜지면 그냥 Search_blue가 아닌 Search_green으로 돌아가게 해준다
+            if(timer_ticks - current_ticks > DISTANCE_TICKS) { // DISTANCE_TICKS: 일정거리 전진하는 변수
               red_phase2 = false;
               machine_status = (return_mode)? SEARCH_GREEN : SEARCH;
           }
@@ -334,10 +341,11 @@ int main(int argc, char **argv)
         case COLLECT:
         {
           ROLLER_ON
-
+//멀리있는 왼쪽공 갈때 가까운 조금 오른쪽 공을 치고 가는 상황을 방지하기 위해서 가까운 공 먼저 먹게한다. 
           int target = closest_ball(BLUE);
           if(target==-1) target = leftmost_blue();
 
+//
           if(target == -1){
             machine_status = COLLECT2;
             printf("recent target blue was at (%.3f, %.3f)\n", recent_target_b_x, recent_target_b_z);
@@ -365,7 +373,9 @@ int main(int argc, char **argv)
           }
           break;
         }
-        case COLLECT2:
+        
+	//일정거리 앞으로 이동하면서 롤러 회전해서 공 진짜로 먹는거      
+	case COLLECT2:
         {
           if(timer_ticks - current_ticks <= 40) GO_FRONT
 	  ROLLER_ON
@@ -377,6 +387,9 @@ int main(int argc, char **argv)
           }
           break;
         }
+
+//웹캠만으로 멀리있는 초록공이 안보일때 Backup plan으로 라이다를 사용해서 Return하도록 하려고 코드를 짰지만,
+//실제 데모장에서 초록공 Detection 문제가 없어서 라이다 코드는 사용하지 않았다. 
         case LIDAR_RETURN:
         {
           #ifndef LIDAR
@@ -404,12 +417,14 @@ int main(int argc, char **argv)
           #endif
           break;
         }
-        case SEARCH_GREEN:
+        
+//서치 그린안에 그린찾아서 릴리즈 까지 하는데 안에 가짜 서치가       
+	case SEARCH_GREEN:
         {
           switch(green_cnt_top) {
             case 0:
 		{ TURN_RIGHT_MID break; }
-            case 1:
+            case 1: //공이 하나만 보일때 그 공 보고 직진 (공이 멀리 있어서 하나만 보이는거 일 수도 있으니까)
 		{
 	      if(!(timer_ticks%10)) printf("(%s) spin(green_cnt_top = %d), zpos = %.4f\n", TESTENV, green_cnt_top, green_z_top[0]);
               if(green_z_top[0] > 2.0f){
@@ -421,20 +436,22 @@ int main(int argc, char **argv)
  	      else { TURN_RIGHT_SLOW printf("turn_right : cnt=1, zpos = %.4f\n", green_z_top[0]); }
               break;
 		}
-            case 2:
-            default:
+            case 2: // 초록공 2개 동시에 보일때 실행
+            default: //초록공이 3개 넘게 인식될때에 대한 Backup plan
             {
               float xg1 = green_x_top[0];
               float zg1 = green_z_top[0];
               float xg2 = green_x_top[1];
               float zg2 = green_z_top[1];
 
-              float mid_x = 0.5 * (xg1 + xg2);
-              float mid_z = 0.5 * (zg1 + zg2);
+              float mid_x = 0.5 * (xg1 + xg2); //중점 찾기//
+              float mid_z = 0.5 * (zg1 + zg2); 
 
               if(!(timer_ticks % 10)) printf(" (%.3f, %.3f), (%.3f, %.3f) \n", xg1, zg1, xg2, zg2);
-
-              float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1)));
+//0.4초마다 프린트해주는거//
+              float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1))); //중점이랑 카메라 시야 사이의 각도//
+//얼라인 할때 중점이 2미터 밖에 있으면 타깃 theta가 +_10도 안에 들어오게 align 하고 2미터 안에 들어올때까지 전진//
+//
 if(mid_z > 2.0f) {
   float target_theta = RAD2DEG(atan(mid_x/mid_z));
   if(target_theta > 10.0f) TURN_RIGHT
@@ -442,7 +459,8 @@ if(mid_z > 2.0f) {
   else GO_FRONT
 
 
-} else {
+} 
+else {
 
               if(theta < -10.0f){
 		if(theta < -15.0f) TURN_RIGHT
@@ -472,7 +490,7 @@ if(mid_z > 2.0f) {
             if(red_in_range())
               machine_status = RED_AVOIDANCE;
 
-            break;
+            break; //여기까지 초록공 Search & Alignment Case0: search, case1: approach, case 2: approach & align 
             }
           }
 
@@ -800,7 +818,8 @@ if(mid_z > 2.0f) {
 
       #ifdef MYRIO
       if(use_myrio) {
-      size_t written = write(c_socket, data, sizeof(data));
+      size_t written = write(c_socket, data, sizeof(data)); //write 라는게 TCP/IP에 데이타를 보냄, 
+	  
       if(DEBUG) printf("%d bytes written\n", (int) written);
       }
       #endif
