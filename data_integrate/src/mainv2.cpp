@@ -95,7 +95,6 @@ int return_mode = 0;
 #endif
 
 bool dirtybit_SG = false;
-int SG_sema = 0;
 
 #ifdef MYRIO
 int c_socket, s_socket;
@@ -158,8 +157,7 @@ int main(int argc, char **argv)
 
 
 //argument parsing을 아용해 command에서 x, y, z offset과 use myrio, timeout을 설정할 수 있다.
-//ex) rosrun data_integration data_integrate_node -x -0.013 -z 0.18 -T 60 -m
-sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
+//command example ) rosrun data_integration data_integrate_node -x -0.013 -z 0.18 -T 60 -m
 
     while((tag = getopt(argc, argv, "x:z:X:Z:mT:")) != -1) {
       switch(tag) {
@@ -275,7 +273,7 @@ sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
         case SEARCH: 
         {
 	// POLICY : target selecting policy. 1. leftmost, 2. centermost, 3. closest ball
-	// default POLICY : lestmost
+	// default POLICY : leftmost
           int target_b = target_blue(POLICY); //leftmost_blue();
           int target_b_top = target_blue_top(POLICY); //leftmost_blue_top();
           if(target_b < 0) { //아래 카메라에서 blue ball이 보이지 않을 때
@@ -306,7 +304,7 @@ sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
 	/*Approach phase :
 	GO_FRONT toward target blue ball. Initial target is leftmost_blue ball in bottom camera.
 	If any blue ball is detected in bottom camera, then swithch target to closest blue ball.
-	
+	( Target is always closest blue ball detected in bottom camera.)
 	If target blue ball leaves out the center, then move to SEARCH phase, else move to COLLECT phase.*/
         case APPROACH: 
         {
@@ -314,28 +312,34 @@ sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
           int target_b = leftmost_blue();
           int target_b2 = closest_ball(BLUE);
 
-          if(target_b2 != -1) target_b = target_b2; // If 
-
-          if(fabs(blue_x[target_b]) >= 0.20) { machine_status = SEARCH; }
-          else {
+          if(target_b2 != -1) target_b = target_b2; // target is closest blue ball detected in bottom camera.
+	//If x postion of target is larger than 20cm, then move to SEARCH phase to align to target again.
+          if(fabs(blue_x[target_b]) >= 0.20) { machine_status = SEARCH; } 
+          else { 
+	//If target is in 20cm from the robot, then move to COLLECT phase.
             if(blue_z[target_b] < 0.2) {
               machine_status = COLLECT;
             }
           }
-
+	//If there is any red ball between target and robot, then move to RED_AVOIDANCE.
+	// else, maintain previously determined status.
           if(red_in_range()) {
-            assert(closest_ball(RED) != -1);
-            if(red_z[closest_ball(RED)] <= blue_z[target_b]) {
-              red_phase2 = false;
+	    //(for error detection) If red in range but there's no red ball, then print assertion failed error.
+            assert(closest_ball(RED) != -1); 
+            if(red_z[closest_ball(RED)] <= blue_z[target_b]) {	    //If closest red ball is closer than target blue ball
+              red_phase2 = false; 	//using red_phase2 for timer which is used in RED_AVOIDANCE phase.
               machine_status = RED_AVOIDANCE;
             }
           }
 
           break;
         }
+	/* RED_AVOIDANCE phase : 
+	robot keeping turning left until red ball is out of range.
+	Then go front for 65 time_ticks ( 65* 1/40) */
         case RED_AVOIDANCE:
         {
-          if(!red_in_range() && !red_phase2){
+          if(!red_in_range() && !red_phase2){ 
             red_phase2 = true;
             printf("(%s) RED_AVOIDANCE_2\n", TESTENV);
             current_ticks = timer_ticks; //timer_ticks 현재 시간 (실시간), current_ticks 는 timer_tick에서 그때그때 받아온 시간 (실시간으로 안바뀜)
