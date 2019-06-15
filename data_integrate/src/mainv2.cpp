@@ -267,8 +267,10 @@ sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
             machine_status = SEARCH;
           break;
         }
-	//SEARCH phase      
-        case SEARCH:
+	/*SEARCH phase
+	searching blue ball. If blue ball is 
+	*/
+        case SEARCH: 
         {
 	// POLICY : target selecting policy. 1. leftmost, 2. centermost, 3. closest ball
 	// default POLICY : lestmost
@@ -295,7 +297,7 @@ sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
                machine_status = APPROACH;
             }
           }
-
+	//red ball이 있을 때 RED_AVOIDANCe phase로 넘어간다.
           if(red_in_range()) machine_status = RED_AVOIDANCE;
           break;
         }
