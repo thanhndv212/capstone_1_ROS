@@ -306,6 +306,7 @@ sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
 	/*Approach phase :
 	GO_FRONT toward target blue ball. Initial target is leftmost_blue ball in bottom camera.
 	If any blue ball is detected in bottom camera, then swithch target to closest blue ball.
+	
 	If target blue ball leaves out the center, then move to SEARCH phase, else move to COLLECT phase.*/
         case APPROACH: 
         {
