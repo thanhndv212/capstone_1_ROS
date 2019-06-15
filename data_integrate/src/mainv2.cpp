@@ -255,21 +255,23 @@ sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
         return_mode = 1;
       }
 
-/* switching between states by machine_status */
+/* switching machine_status based on predifined conditions */
       switch(machine_status) {
-	// INIT phase
+	/*INIT phase : start with go front 2m and move to SEARCH phase*/
         case INIT:
         {
           MSGE("go front 2m first") //printf function that print debugging msg per 1/4s (function defined in header "util_rtn")
           GO_FRONT
-	// 2s 동안 GO_FRONT 후 SEARCH phase로 넘어간다.
+	// 2s (= 2m) 동안 GO_FRONT 후 SEARCH phase로 넘어간다.
           if(timer_ticks - current_ticks >= 80) 
             machine_status = SEARCH;
           break;
         }
-	/*SEARCH phase
-	searching blue ball. If blue ball is 
-	*/
+	/*SEARCH phase :
+	Searching blue ball. 
+	If there is red ball, then move to RED_AVIODANCE phase.
+	If there is any blue ball, align to target blue ball.
+	If no ball is detected in both camera, then searching blue ball by turning right robot.	*/
         case SEARCH: 
         {
 	// POLICY : target selecting policy. 1. leftmost, 2. centermost, 3. closest ball
@@ -297,17 +299,21 @@ sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
                machine_status = APPROACH;
             }
           }
-	//red ball이 있을 때 RED_AVOIDANCe phase로 넘어간다.
+	//target blue ball 보다 red ball이 가까이 있을 때 RED_AVOIDANCE phase로 넘어간다.
           if(red_in_range()) machine_status = RED_AVOIDANCE;
           break;
-        }
-        case APPROACH:
+	}
+	/*Approach phase :
+	GO_FRONT toward target blue ball. Initial target is leftmost_blue ball in bottom camera.
+	If any blue ball is detected in bottom camera, then swithch target to closest blue ball.
+	If target blue ball leaves out the center, then move to SEARCH phase, else move to COLLECT phase.*/
+        case APPROACH: 
         {
-          GO_FRONT
+          GO_FRONT //GO_FRONT toward target blue ball.
           int target_b = leftmost_blue();
           int target_b2 = closest_ball(BLUE);
 
-          if(target_b2 != -1) target_b = target_b2;
+          if(target_b2 != -1) target_b = target_b2; // If 
 
           if(fabs(blue_x[target_b]) >= 0.20) { machine_status = SEARCH; }
           else {
