@@ -628,7 +628,7 @@ Then reverse the roller to release the ball into the basket.*/
 
 #ifdef WEBCAM //If using webcam,
 /* camera_Callback : Updates position/ball_count of all colors */
-//This function is for bottom camera
+//bottom camera callback function
 void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 {
   /* Step 1. Fetch data from message */
@@ -684,7 +684,7 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 }
 
 /* callback 2 */
-//This function is for top camera (same algorithm with bottom camera callback.)
+//top camera call back function (same algorithm with bottom camera callback.)
 void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
 {
   /* Step 1. Fetch data from message */
@@ -731,44 +731,45 @@ void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
     green_z_top[i] = z_pos - z_offset;
   }
 }
-//리포트 
+//ball counter camera call back function
 void camera_Callback_counter(const core_msgs::roller_num::ConstPtr& cnt)
 {
+  //get binary value whether the number of collected blue balls are 3 or less.
   int shift = cnt->size_b;
-
+  //If there are 3 ball and not return mode,
   if(shift && !return_mode) {
-    printf("(%s) dupACKcnt = %d\n", TESTENV, (int) ++dupACKcnt);
-    if(dupACKcnt >= 3) {  // 3 Duplicate ACK
-      if(machine_status == SEARCH || !return_mode) {
-        machine_status = LIDAR_RETURN;
-        return_mode = 1;
+    printf("(%s) dupACKcnt = %d\n", TESTENV, (int) ++dupACKcnt); //increase dupACKcnt variable 1
+    if(dupACKcnt >= 3) {  // If dupACKcnt is larger than 3,
+      if(machine_status == SEARCH || !return_mode) { //If phase is not in SEARCH and not return_mode,
+        machine_status = LIDAR_RETURN; //move to LIDAR_RETURN phase to release balls.
+        return_mode = 1; // turn on return_mode
       }
     }
   }
-  else
+  else // If ball counter is 0, then init dupACKcnt value.
     dupACKcnt = 0;
 
 }
 
-
+//detect ball with colors.
 bool ball_in_range(enum color ball_color) {
-
+//If color of ball to detect is blue,
   if(ball_color == BLUE) {
     for(int i=0; i<blue_cnt; i++) {
-      //printf("blue[%d] = (%.2f, %.2f)\n", i, blue_x[i], blue_z[i]);
+	//If blue ball is inside  the range of +/- 0.034 m lateral  and 0.3 m longitudinal, return true
       if(fabs(blue_x[i])<=0.034 && blue_z[i] <= 0.3)
         return true;
     }
-    return false;
+    return false; //else no blue ball is in range, return false.
 
-  } else if(ball_color == RED) {
-    return red_in_range();
+  } else if(ball_color == RED) { //If color of ball to detect is red,
+    return red_in_range(); // go to red_in_range
 
   } else {
-    return false;
+    return false; //no red ball is detected then return false.
   }
 }
-
+//If red ball is inside the range of +/- 0.25 m and 0.3m longitudinal, return true, else false.
 bool red_in_range() {
   for(int i=0; i<red_cnt; i++) {
     if(fabs(red_x[i])<0.25 && red_z[i] <= 0.3)
@@ -779,7 +780,7 @@ bool red_in_range() {
 
 /*
  * leftmost green()
- * return leftmost blue visible in sight
+ * return leftmost blue visible in sight in bottom camera
  * return -1 if invisible
  */
 int leftmost_green() {
@@ -788,7 +789,7 @@ int leftmost_green() {
 
   float xpos = green_x[0];
   int min_idx = 0;
-
+// find ball index which has least x posiiton
   for(int i=0; i<green_cnt; i++) {
     if(green_x[i] <= xpos) {
       xpos = green_x[i];
@@ -797,7 +798,11 @@ int leftmost_green() {
   }
   return min_idx;
 }
-
+/*
+ * rightmost green()
+ * return rightmost blue visible in sight in bottom camera
+ * return -1 if invisible
+ */
 int rightmost_green() {
   if(!green_cnt)
     return -1;
@@ -812,7 +817,11 @@ int rightmost_green() {
 
   return max_idx;
 }
-
+/*
+ * leftmost green_top()
+ * return leftmost blue visible in sight in top camera
+ * return -1 if invisible
+ */
 int leftmost_green_top() {
   if(!green_cnt_top)
     return -1;
@@ -832,7 +841,7 @@ int leftmost_green_top() {
 
 /*
  * leftmost blue()
- * return leftmost blue visible in sight
+ * return leftmost blue visible in sight in bottom camera
  * return -1 if invisible
  */
 int leftmost_blue() {
@@ -851,7 +860,11 @@ int leftmost_blue() {
   }
   return min_idx;
 }
-
+/*
+ * leftmost blue()
+ * return leftmost blue visible in sight with top camera
+ * return -1 if invisible
+ */
 int leftmost_blue_top() {
   if(!blue_cnt_top)
     return -1;
@@ -872,6 +885,7 @@ int leftmost_blue_top() {
 /*
  * target_blue(int policy)
  * policy : LEFTMOST(0), CENTERMOST(1), CLOSEST(2)
+ * go to each function
  */
 int target_blue(int policy) {
   switch(policy) {
@@ -881,7 +895,7 @@ int target_blue(int policy) {
       return centermost_blue();
     case CLOSEST:
       return closest_ball(BLUE);
-    default:
+    default: // for error that undefined policy
       PANIC("Undefined ball policy");
   }
 }
@@ -889,6 +903,7 @@ int target_blue(int policy) {
 /*
  * target_blue(int policy)
  * policy : LEFTMOST(0), CENTERMOST(1), CLOSEST(2)
+ * go to each function.
  */
 int target_blue_top(int policy) {
   switch(policy) {
@@ -898,7 +913,7 @@ int target_blue_top(int policy) {
       return -1;
     case CLOSEST:
       return closest_blue_top();
-    default:
+    default: // for error that undefined policy
       PANIC("Undefined ball policy");
   }
 }
@@ -906,16 +921,16 @@ int target_blue_top(int policy) {
 
 /*
  * centermost blue()
- * return index of centermost blue ball amongst visible ones
+ * return index of centermost blue ball amongst visible ones in bottom camera
  * -1 if no blue ball is in sight
  */
 int centermost_blue() {
-  if(!blue_cnt)
+  if(!blue_cnt) //If no ball is detected then return -1
     return -1;
 
   float xpos_abs = fabs(blue_x[0]);
   int min_idx = 0;
-
+//find blue ball which has minimum absolute x value.
   for(int i=0; i<blue_cnt; i++) {
     if(fabs(blue_x[i]) < xpos_abs) {
       xpos_abs = fabs(blue_x[i]);
@@ -925,7 +940,11 @@ int centermost_blue() {
   return min_idx;
 }
 
-// 위에 있는 카메라로 봤을때 가장 가까이 있는 Blue ball array 의 index를 반환한다. 없으면 return -1 //
+/*
+ * closest_blue_top()
+ * return index of closest blue ball amongst visible ones in top camera
+ * -1 if no blue ball is in sight
+ */
 int closest_blue_top() {
       int result_idx = -1;
 
@@ -944,34 +963,38 @@ int closest_blue_top() {
       return result_idx;
 }
 
-// 아래있는 카메라로 봤을때 가장 가까이 있는 ball color 를 가진 공에 대한 array 의 index를 반환한다. 없으면 return -1 //
+/*
+ * closest_ball()
+ * return index of closest ball which has color defined in function amongst visible ones in bottom camera
+ * -1 if no ball with that color is in sight
+ */
 int closest_ball(enum color ball_color) {
   switch(ball_color) {
-    case BLUE:
+    case BLUE: // If blue ball
     {
       int result_idx = -1;
 
-      if(!blue_cnt)
+      if(!blue_cnt) //no blue ball is detected then return -1
         return -1;
 
       float front_dist = blue_z[0];
-
+	//find index of closest blue ball
       for(int i=0; i<blue_cnt; i++){
         if(blue_z[i] <= front_dist){
           front_dist = blue_z[i];
           result_idx = i;
         }
       }
-
+	//return index
       return result_idx;
     }
     case RED:
     {
       int result_idx = -1;
 
-      if(!red_cnt)
+      if(!red_cnt) //no red ball is detected then return -1
         return -1;
-
+	//find index of closest red ball
       float front_dist = red_z[0];
       for(int i=0; i<red_cnt; i++){
         if(red_z[i] <= front_dist){
@@ -979,7 +1002,7 @@ int closest_ball(enum color ball_color) {
           result_idx = i;
         }
       }
-
+	 //return index
         return result_idx;
       break;
     }
@@ -987,8 +1010,9 @@ int closest_ball(enum color ball_color) {
     {
       int result_idx = -1;
 
-      if(!green_cnt)
+      if(!green_cnt)//no green ball is detected then return -1
         return -1;
+	//find index of closest green ball
       float front_dist = green_z[0];
       for(int i=0; i<green_cnt; i++) {
         if(green_z[i] <= front_dist) {
@@ -996,9 +1020,10 @@ int closest_ball(enum color ball_color) {
           result_idx = i;
         }
       }
+	//return index
       return result_idx;
     }
-    default:
+    default: //for error that color variable is not in blue, red, green.
       { return -1; }
   }
 }
@@ -1007,10 +1032,8 @@ int closest_ball(enum color ball_color) {
  * furthest_green()
  * Traverse through green_z
  * returns INDEX of maximum dist Z
- *
  * This is redundant, but is implemented as senitel
  */
-
 int furthest_green() {
   int result_idx = 0;
 
@@ -1024,7 +1047,9 @@ int furthest_green() {
   return result_idx;
 }
 #endif
+//finished webcam
 
+/* lidar*/
 #ifdef LIDAR
 void lidar_Callback(const lidar::coor::ConstPtr& pos)
 {
@@ -1038,6 +1063,7 @@ void lidar_Callback(const lidar::coor::ConstPtr& pos)
 
 }
 #endif
+//finished lidar
 
 void dataInit()
 {
