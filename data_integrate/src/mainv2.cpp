@@ -157,7 +157,10 @@ int main(int argc, char **argv)
     memset(downside_angle_, 0, 6);
 
 
-//getopt 관련된거 리포트 Appendix a-1 참조 
+//argument parsing을 아용해 command에서 x, y, z offset과 use myrio, timeout을 설정할 수 있다.
+//ex) rosrun data_integration data_integrate_node -x -0.013 -z 0.18 -T 60 -m
+sets x_offset = 0.013, z_offset = 0.18, timeout = 60, and use_myrio = false.
+
     while((tag = getopt(argc, argv, "x:z:X:Z:mT:")) != -1) {
       switch(tag) {
         case 'x':
@@ -217,9 +220,11 @@ int main(int argc, char **argv)
     c_socket = socket(PF_INET, SOCK_STREAM, 0);
     c_addr.sin_addr.s_addr = inet_addr(IPADDR);
     c_addr.sin_family = AF_INET;
-    c_addr.sin_port = htons(PORT); //여기까지 초기화
+    c_addr.sin_port = htons(PORT);
 
-//앞서 초기화한 세팅으로 컨넥트를 하는데, 컨넥트라는게 실패하면 -1 반환하고 fail 메세지 프린트하고 종료. 성공하면? 패스하겠지 컨넥트 됐다고 프린트. 
+//앞서 초기화한 세팅으로 myrio와 connect하는데,
+//connect 실패하면 fail msg를 프린트 후 soket 닫고 -1 반환한다.
+//connect 되면 connet msg를 프린트한다.
     if(connect(c_socket, (struct sockaddr*) &c_addr, sizeof(c_addr)) == -1){
       printf("(%s) Failed to connect\n", TESTENV);
       close(c_socket);
@@ -228,60 +233,60 @@ int main(int argc, char **argv)
     printf("(%s) Connected to %s:%d\n", TESTENV, IPADDR, PORT);
     }
     #endif
-//소켓 끝
+//finish connecting soket
 	
 	
     printf("(%s) Entering main routine...\n", TESTENV);
     printf("(%s) state = INIT\n", TESTENV);
 
-    current_ticks = timer_ticks; //   1 타임 틱이 1/40초 
+    current_ticks = timer_ticks; //   1 timet_ticks = 1/40s (아래 main 함수 끝날 때 ros::Duration(DURATION).sleep();에서 value 정함.)
 
     while(ros::ok){
-      dataInit(); //TCP IP 에서 24byte 를 주는데 처음에 그걸다 0으로 초기화 해준다.
-    //근데 와일 루프 스핀할때마다 한번씩 보내거든 근데 앞에서 데이타 이닛을 안해주면 다른거랑 겹쳐서 같이 감 (이상한 데이타 허허) 
+	//initializing 24byte array recieved from TCP IP (while loop 할 때마다 initialize해주지 않으면 전 loop의 data와 합쳐진다.)
+      dataInit(); 
+	//state transition을 확인하기 위해 state가 바뀔 때에만 프린트한다.
       if(recent_status != machine_status)
         std::cout << "(" << TESTENV << ") state = " << cond[(recent_status = machine_status)] << std::endl;
-//스테이트가 바뀔때 프린트한다 (state transition 확인하기 위함)
-     
+   	//timeout 시간을 넘기면 return phase로 status를 바꾼다.
+	//timeout 설정한 이유: blue ball counter 문제에 대한 Backup Plan
 	if(timer_ticks > 40 * timeout && !return_mode) {
         printf("(%s) switching to return mode after %.2f s of timeout\n", TESTENV, (float) timeout);
         machine_status = LIDAR_RETURN;
         return_mode = 1;
       }
-//타임아웃 설정한 이유: 카운터 문제에 대한 Backup Plan
 
-      /* switching between states */
-	    
-//switch는 machine_status 값에 따라서 state를 결정해주는 함수이다. 
-      /* switching between states */
+/* switching between states by machine_status */
       switch(machine_status) {
+	// INIT phase
         case INIT:
         {
-          MSGE("go front 2m first") //printf 랑 비슷하지만, (디버깅 메세지가 10번 뜰걸 한번만 뜨게 해줌)
+          MSGE("go front 2m first") //printf function that print debugging msg per 1/4s (function defined in header "util_rtn")
           GO_FRONT
-
-          /* Initiate SEARCH */
-          if(timer_ticks - current_ticks >= 80) // 2초 짜리
+	// 2s 동안 GO_FRONT 후 SEARCH phase로 넘어간다.
+          if(timer_ticks - current_ticks >= 80) 
             machine_status = SEARCH;
-//init --> SEARCH 로 넘어감
           break;
         }
-		      
+	//SEARCH phase      
         case SEARCH:
         {
+	// POLICY : target selecting policy. 1. leftmost, 2. centermost, 3. closest ball
+	// default POLICY : lestmost
           int target_b = target_blue(POLICY); //leftmost_blue();
           int target_b_top = target_blue_top(POLICY); //leftmost_blue_top();
-// 서치 부분은 보고서에 있다.
-          if(target_b < 0) {
-            if(target_b_top >= 0) {
+          if(target_b < 0) { //아래 카메라에서 blue ball이 보이지 않을 때
+            if(target_b_top >= 0) { // 위 카메라에서 blue ball이 보일 때
+	      //ball의 x 값이 +-0.3 범위에 없으면 TURN, 범위 안에 들어오면 GO_FRONT.
               float xpos_top_b = blue_x_top[target_b_top];
-              if(xpos_top_b >= 0.3) TURN_RIGHT
+              if(xpos_top_b >= 0.3) TURN_RIGHT 
               else if(xpos_top_b <= -0.3) TURN_LEFT
               else GO_FRONT
-            } else {
+            } else { 
+	      // 아래, 위 카메라에서 둘 다 blue ball을 못찾으면 TURN_RIGHT해 blue ball을 찾는다.
               TURN_RIGHT
             }
-          } else {
+          } else { //아래 카메라에서 blue ball이 보일 때 
+	    //ball의 x 값이 +-0.15 범위에 없으면 TURN, 범위 안에 들어오면 APPROACH phase로 넘어간다.
             if(blue_x[target_b] > 0.15) {
               TURN_RIGHT // ROS_INFO("search - R");
             } else if(blue_x[target_b] < -0.15) {
