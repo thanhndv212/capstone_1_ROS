@@ -462,6 +462,7 @@ int main(int argc, char **argv)
         }
         /* SEARCH_GREEN : 
 	switch cases with number of detected green balls.
+	Green ball Search & Alignment Case0: search, case1: approach, case 2: approach & align 
 	case 0 : robot keeps turning right until detectng.
 	case 1 : If distance to the green ball is larger than 2m, then go front with aligning.
 		After reaching 2m, robot keeps turning right slowly to detet the other green ball.
@@ -479,10 +480,9 @@ int main(int argc, char **argv)
 	      if(green_z_top[0] > 2.0f){
 		 //calculate angle for feedback loop
 		 float target_theta = RAD2DEG(atan(green_x_top[0]/green_z_top[0]));
-		 // align robot to the basket
+		 // turn and go front to searching other green ball.
 		if(target_theta < -20.0f) TURN_RIGHT
 		else if(target_theta > 20.0f) TURN_LEFT
-		//after aligning, go front.
 		else GO_FRONT
 	      }
 	      //If green ball is in range of 2m, then turn right slowly to find other green ball.
@@ -512,48 +512,50 @@ if(mid_z > 2.0f) {
 
 
 } 
-//When middle point is in 2m, then align again with degrees.
+//When middle point is in 2m, then align with degrees and x position.
 else {
 
               if(theta < -10.0f){
 		if(theta < -15.0f) TURN_RIGHT //If theta is smaller than -15 degree, turn right.
-                else TURN_RIGHT_SLOW //If theta is in range of -10 to -15, turn right slowly for delicate alignment
+                else TURN_RIGHT_SLOW //If theta is in range of -10 to -15, turn right slowly for delicate alignment.
                 MSGE("turn_right_slow")
 
-              } else if(theta > 10.0f) {
-                if(theta > 15.0f) TURN_LEFT
-		else TURN_LEFT_SLOW
+              } else if(theta > 10.0f) { 
+                if(theta > 15.0f) TURN_LEFT //If theta is larger than 15 degree, turn left.
+		else TURN_LEFT_SLOW //If theta is in range of 10 to 15, turn left slowly for delicate alignment.
                 MSGE("turn_left_slow")
  
-              } else if(mid_x < -0.02f) {
-                if(mid_x < -0.10f) TRANSLATE_LEFT_3x
-                else TRANSLATE_LEFT //_SLOW
-              } else if(mid_x > 0.02f) {
-                if(mid_x > 0.10f) TRANSLATE_RIGHT_3x
-                else TRANSLATE_RIGHT //_SLOW
+              } else if(mid_x < -0.02f) { //If x position of middle point is smaller than -2cm,
+                if(mid_x < -0.10f) TRANSLATE_LEFT_3x //If x position of middle point is smaller than -2cm, move left.
+                else TRANSLATE_LEFT //If x position of middle point is between -2cm and -10cm, move left slowly.
+              } else if(mid_x > 0.02f) {  //If x position of middle point is larger than +2cm,
+                if(mid_x > 0.10f) TRANSLATE_RIGHT_3x //If x position of middle point is larger than +10cm, move right.
+                else TRANSLATE_RIGHT //If x position of middle point is between +2cm and +10cm, move right slowly.
               } else {
+		//After aligning to basket, go front.
                 GO_FRONT
                 MSGE("go_front")
               }
 
 }
-              if(0.5*(zg1+zg2) <= 0.8){ printf("goal distance = %.4f\n", 0.5*(zg1+zg2)); goal_z = 0.5*(zg1+zg2); 
-		current_ticks = timer_ticks; machine_status = RELEASE; } //machine_status = APPROACH_GREEN;
-
-		    //중점이 80cm 안으로 들어오면 state transition to "RELEASE" //
-		    //거리를 goal_z에 저장한다//
+	      //If robot is perfectly aligned with the basket and 80cm away from the basket, move to RELEASE state.
+              if(0.5*(zg1+zg2) <= 0.8){ 
+		      printf("goal distance = %.4f\n", 0.5*(zg1+zg2)); 
+		      goal_z = 0.5*(zg1+zg2); //save goal_z for using in RELEASE phase.
+		      current_ticks = timer_ticks;
+		      machine_status = RELEASE; 
+	      } 
+	    //If there is any red ball in sight, then move to RED_AVOIDANCE phase.
             if(red_in_range())
-              machine_status = RED_AVOIDANCE; //Search_Green 하면서 RED_AVOIDANCE 도 실행 
-
-            break; //여기까지 초록공 Search & Alignment Case0: search, case1: approach, case 2: approach & align 
+              machine_status = RED_AVOIDANCE;
+            break;
             }
           }
           break;
         }
 	      
-		      
-		      
-
+/* RELEASE phase :
+*/
         case RELEASE:
         {
 //웹캠만으로 멀리있는 초록공이 안보일때 Backup plan으로 라이다를 사용해서 Return하도록 하려고 코드를 짰지만,
