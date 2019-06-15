@@ -137,8 +137,8 @@ int main(int argc, char **argv)
 
     /* Argument parsing */
     int tag;
-// offsets for control position offsets
-//downside_angle is the angle with top camera
+//offsets for control position offsets
+//downside_angle is the angle from top camera
 //set timeout to change phase to return when out of time.
     char x_offset_[5];
     char y_offset_[5];
@@ -254,7 +254,7 @@ int main(int argc, char **argv)
         return_mode = 1;
       }
 
-/* switching machine_status based on predifined conditions */
+/* switching machine_status based on pre-defined conditions */
       switch(machine_status) {
 	/*INIT phase : start with go front 2m and move to SEARCH phase*/
         case INIT:
@@ -270,7 +270,7 @@ int main(int argc, char **argv)
 	Searching blue ball. 
 	If there is red ball, then move to RED_AVIODANCE phase.
 	If there is any blue ball, align to target blue ball.
-	If no ball is detected in both camera, then searching blue ball by turning right robot.	*/
+	If no ball is detected in both cameras, then search blue ball by clockwise rotation. */
         case SEARCH: 
         {
 	// POLICY : target selecting policy. 1. leftmost, 2. centermost, 3. closest ball
@@ -304,9 +304,9 @@ int main(int argc, char **argv)
 	}
 	/*Approach phase :
 	GO_FRONT toward target blue ball. Initial target is leftmost_blue ball in bottom camera.
-	If any blue ball is detected in bottom camera, then swithch target to closest blue ball.
+	If blue ball is detected in bottom camera, then switch target to closest blue ball.
 	( Target is always closest blue ball detected in bottom camera.)
-	If target blue ball leaves out the center, then move to SEARCH phase, else move to COLLECT phase.*/
+	If target blue ball misaligned, then move to SEARCH phase, else move to COLLECT phase.*/
         case APPROACH: 
         {
           GO_FRONT //GO_FRONT toward target blue ball.
@@ -317,12 +317,12 @@ int main(int argc, char **argv)
 	//If x postion of target is larger than 20cm, then move to SEARCH phase to align to target again.
           if(fabs(blue_x[target_b]) >= 0.20) { machine_status = SEARCH; } 
           else { 
-	//If target is in 20cm from the robot, then move to COLLECT phase.
+	//If target is within 20cm from the vehicle, then move to COLLECT phase.
             if(blue_z[target_b] < 0.2) {
               machine_status = COLLECT;
             }
           }
-	//If there is any red ball between target and robot, then move to RED_AVOIDANCE.
+	//If there is any red ball between target and vehicle, then move to RED_AVOIDANCE.
 	// else, maintain previously determined status.
           if(red_in_range()) {
 	    //(for error detection) If red in range but there's no red ball, then print assertion failed error.
@@ -336,11 +336,11 @@ int main(int argc, char **argv)
           break;
         }
 	/* RED_AVOIDANCE phase : 
-	robot keeping turning left until red ball is out of range.(1)
+	Counter-clockwise rotation until red ball is out of range.(1)
 	Then go front for 65 time_ticks ( 65* 1/40 s) (2)
-	Lastly, move to search phase (during pickup mode) or search_green phase(during return mode) (3)*/
+	Lastly, move to search phase (during pickup mode) or search_green phase (during return mode) (3)*/
         case RED_AVOIDANCE:
-        { //If red is not in sight and red_phase2 is false (set robot to go front)
+        { //If red is not in sight and red_phase2 is false (set vehicle to go front)
           if(!red_in_range() && !red_phase2){ 
             red_phase2 = true; // change red_phase2 boolean to true to go front.
             printf("(%s) RED_AVOIDANCE_2\n", TESTENV);
@@ -348,7 +348,7 @@ int main(int argc, char **argv)
 	  }
 	  //If red_phase2 = true (turn left until the red ball is not in sight) (1)
           if(!red_phase2) TURN_LEFT
-	  //If red_phase2 = True (go front for 65 * 1/40 s which is predefined based on both analytical and experimental test) (2)
+	  //If red_phase2 = True (go front for 65 * 1/40 s which is pre-defined based on both analytical and experimental test) (2)
           else {
 		  GO_FRONT
 	    // When timer becomes larger than distance_ticks (DISTANCE_TICKS: 일정거리 전진하는 변수 ( 65 * 1/40 s) )
@@ -362,17 +362,17 @@ int main(int argc, char **argv)
         }
 	/* COLLECT phase :
 	Turn on the roller and set target blue ball to closest ball in bottom camera.
-	When target is too close, it can hide under the roller, then move to COLLECT2 phase to go front and pick up ball.
+	When target is too close, it can hide under the roller (collectable situation), then move to COLLECT2 phase to go front and pick up ball.
 	Otherwise, target is still in sight then align to target, start timer and move to COLLECT2 phase.
 	Then save x position and z position( distance) of recent target to use in COLLECT2.
-	If there is any red ball between the target and robot, then move to RED_AVOIDANCE phase.*/
+	If there is any red ball between the target and vehicle at any case, then move to RED_AVOIDANCE phase.*/
         case COLLECT:
         {
           ROLLER_ON
 	  // if there are more than one blue ball in the bottom camera sight, target the closest blue ball in bottom camera
           int target = closest_ball(BLUE);
           if(target==-1) target = leftmost_blue();
-	  //If blue ball is too close, it can be out of sight. Then move to COLLECT2 phase to collect hidden ball.
+	  //If blue ball is too close, it can be out of sight (meaning collectable). Then move to COLLECT2 phase to collect hidden ball.
           if(target == -1){
             machine_status = COLLECT2; 
             printf("recent target blue was at (%.3f, %.3f)\n", recent_target_b_x, recent_target_b_z);
@@ -394,7 +394,7 @@ int main(int argc, char **argv)
           }
 	  //If red ball is in sight
           if(red_in_range()) {
-	    //If red ball is between the target and robot, move to RED_AVOIDANCE phase.
+	    //If red ball is between the target and vehicle, move to RED_AVOIDANCE phase.
             if(red_z[closest_ball(RED)] <= blue_z[target]) machine_status = RED_AVOIDANCE;
           }
 	  //Save x position and z position(distance) of target to use in COLLECT2 phase.
@@ -406,17 +406,17 @@ int main(int argc, char **argv)
         }
         /* COLLECT2 phase : 
 	Go front for 40 * 1/ 40 s using timer and turn on the roller.
-	After timer is more than 40 * 1/40 s, stop robot but keep roller on to collect ball completely.
-	When timer becomes larger than DISTANCE_TICKS_CL ( 75 * 1/40 s) ,then move to SEARCH phase to collect another ball. */
+	After timer is more than 40 * 1/40 s, stop vehicle but keep roller on to collect ball completely.
+	When timer becomes larger than DISTANCE_TICKS_CL ( 75 * 1/40 s) ,then move to SEARCH phase to collect next ball. */
 	case COLLECT2:
         {
           if(timer_ticks - current_ticks <= 40) GO_FRONT //GO_FRONT until timer becomes 40.
 	  ROLLER_ON //turn on the roller.
           if(timer_ticks - current_ticks > DISTANCE_TICKS_CL) { // If timer becomes larger than DISTANCE_TICKS_CL ( 75)
             machine_status = SEARCH; // move to SEARCH phase.
-	    //If x posiotn of target is smaller than 13.3cm, then count up.
+	    //If x position of target is smaller than 13.3cm, then count up.
 	    //Use x position value to count up as if using z position, then count up for both collected ball and disappeared ball in sight.
-	    //As this is not always correctly count balls, We made ball-counter using other ball-counter camera.
+	    //As this does not always count balls correctly, We made ball-counter using another ball-counter camera.
             if(fabs(recent_target_b_x)<0.133)
               printf("(%s) collected ball. ball_count = %d\n",TESTENV , ++ball_cnt);
           }
@@ -424,10 +424,10 @@ int main(int argc, char **argv)
         }
 	/* LIDAR_RETURN phase : 
 	- We made this code as back up plan when distant green ball is not detected with webcam.
-	- But we did not use in demo as there's no problem in detecting green balls.
-	If the number of collecter ball is equal to 3, then change to LIDAR_RETURN phase.
-	If the lidar is not utilized, then immediately change to SEARCH_GREEN phase.
-	If the lidar is utilized, based on the absolute coordinates, move robot to the center ilne aligning with green balls.
+	- But we did not use in demo as there was no problem in detecting green balls in the demo arena.
+	If the ball count is equal to 3, then change to LIDAR_RETURN phase.
+	If the lidar is not utilized (or not defined), then immediately change to SEARCH_GREEN phase.
+	If the lidar is utilized, based on the absolute coordinates, move vehicle to the center ilne aligning with green balls.
 	Then move to SEARCH_GREEN phase.*/
         case LIDAR_RETURN:
         {
@@ -437,8 +437,8 @@ int main(int argc, char **argv)
           machine_status = SEARCH_GREEN;
 	  // If the lidar is utilized 
           #else 
-	  //If the absolute angle of the robot is smaller than 170 degree or larger than 190 degree,
-	  //adjust robot’s direction back to near 180 degree. 
+	  //If the absolute angle of the vehicle is smaller than 170 degree or larger than 190 degree,
+	  //adjust vehicle’s direction back to near 180 degree. 
 	  if(theta_abs > 190.0f) {
             MSGE("LIDAR_RETURN : turn left")
             TURN_LEFT
@@ -446,14 +446,14 @@ int main(int argc, char **argv)
             MSGE("LIDAR_RETURN : turn right")
             TURN_RIGHT
           } else if(xpos_abs > 2.0f) { 
-         //if the robot is away from the center line 2 cm, adjusting the lateral position of the robot to the center line.
+         //if the vehicle is away from the center line by 2 cm, adjust the lateral position of the vehicle towards the center line.
             MSGE("LIDAR_RETURN : go_front")
             GO_FRONT
           } else {
-	 //Afther aligning, move to SEARCH_GREEN phase.
+	 //After aligning, move to SEARCH_GREEN phase.
             machine_status = SEARCH_GREEN;
           }
-	 //If any red ball is detected in bottom camera, then move to RED_AVOIDANCE phase.
+	 //If red ball is detected in bottom camera, then move to RED_AVOIDANCE phase.
           if(red_in_range()){
             MSGE("LIDAR_RETURN : red ball detected")
             machine_status = RED_AVOIDANCE;
@@ -462,22 +462,22 @@ int main(int argc, char **argv)
           break;
         }
         /* SEARCH_GREEN : 
-	switch cases with number of detected green balls.
+	switch case breakdown based on number of green balls detected.
 	Green ball Search & Alignment Case0: search, case1: approach, case 2: approach & align 
-	case 0 : robot keeps turning right until detectng.
+	case 0 : Vehicle rotates clockwise until detection.
 	case 1 : If distance to the green ball is larger than 2m, then go front with aligning.
-		After reaching 2m, robot keeps turning right slowly to detet the other green ball.
-	case 2 : Using feedback loop to align robot with basket.*/
+		After reaching 2m, slowly rotate clockwise to detect the other green ball.
+	case 2 : Use feedback loop to align with basket.*/
 	case SEARCH_GREEN:
         {
           switch(green_cnt_top) {
-            case 0: //If no green ball is detected, turn right until detecting.
+            case 0: //If no green ball is detected, rotate clockwise until green ball detection.
 		{ TURN_RIGHT_MID break; }
-            case 1: //If only 1 ball is detected,
+            case 1: //If only 1 green ball is detected,
 		{
 	      //(for debugging) print spin msg with distance to green ball per 1/4 s.
 	      if(!(timer_ticks%10)) printf("(%s) spin(green_cnt_top = %d), zpos = %.4f\n", TESTENV, green_cnt_top, green_z_top[0]);
-              // If distance to the detected green ball os larger than 2m,
+              // If distance to the detected green ball is larger than 2m,
 	      if(green_z_top[0] > 2.0f){
 		 //calculate angle for feedback loop
 		 float target_theta = RAD2DEG(atan(green_x_top[0]/green_z_top[0]));
@@ -486,25 +486,25 @@ int main(int argc, char **argv)
 		else if(target_theta > 20.0f) TURN_LEFT
 		else GO_FRONT
 	      }
-	      //If green ball is in range of 2m, then turn right slowly to find other green ball.
+	      //If green ball is in range of 2m, slowly rotate clockwise to find other green ball.
  	      else { TURN_RIGHT_SLOW printf("turn_right : cnt=1, zpos = %.4f\n", green_z_top[0]); }
               break;
 		}
             case 2: //If 2 green balls are detected,
-            default: // back up plan when detect more than 3 balls.
+            default: // back up plan when more than 3 green balls are detected.
             {	// using top camera to detect distant green balls
               float xg1 = green_x_top[0];
               float zg1 = green_z_top[0];
               float xg2 = green_x_top[1];
               float zg2 = green_z_top[1];
-	      // Finding middle point of green balls
+	      // Finding midpoint of green balls
               float mid_x = 0.5 * (xg1 + xg2); 
               float mid_z = 0.5 * (zg1 + zg2); 
-	      //print msg of position of green balls per 1/4 s.
+	      //print msg of position of green balls every 1/4 s.
               if(!(timer_ticks % 10)) printf(" (%.3f, %.3f), (%.3f, %.3f) \n", xg1, zg1, xg2, zg2);
-	      //calculate angle between middle point of grren balls and middle line of camera.
+	      //calculate angle between midpoint of green balls and center line of camera.
               float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1))); 
-//If middle point is larger than 2m, then make target_theta in range of +_10 degree and go front until green balls are in 2m.
+//If midpoint is larger than 2m, then make target_theta in range of +_10 degree and go front until green balls are in 2m.
 if(mid_z > 2.0f) {
   float target_theta = RAD2DEG(atan(mid_x/mid_z));
   if(target_theta > 10.0f) TURN_RIGHT
@@ -513,7 +513,7 @@ if(mid_z > 2.0f) {
 
 
 } 
-//When middle point is in 2m, then align with degrees and x position.
+//When midpoint is within 2m, then align with degrees and x position.
 else {
 
               if(theta < -10.0f){
@@ -526,12 +526,12 @@ else {
 		else TURN_LEFT_SLOW //If theta is in range of 10 to 15, turn left slowly for delicate alignment.
                 MSGE("turn_left_slow")
  
-              } else if(mid_x < -0.02f) { //If x position of middle point is smaller than -2cm,
-                if(mid_x < -0.10f) TRANSLATE_LEFT_3x //If x position of middle point is smaller than -2cm, move left.
-                else TRANSLATE_LEFT //If x position of middle point is between -2cm and -10cm, move left slowly.
-              } else if(mid_x > 0.02f) {  //If x position of middle point is larger than +2cm,
-                if(mid_x > 0.10f) TRANSLATE_RIGHT_3x //If x position of middle point is larger than +10cm, move right.
-                else TRANSLATE_RIGHT //If x position of middle point is between +2cm and +10cm, move right slowly.
+              } else if(mid_x < -0.02f) { //If x position of midpoint is smaller than -2cm,
+                if(mid_x < -0.10f) TRANSLATE_LEFT_3x //If x position of midpoint is smaller than -2cm, move left.
+                else TRANSLATE_LEFT //If x position of midpoint is between -2cm and -10cm, move left slowly.
+              } else if(mid_x > 0.02f) {  //If x position of midpoint is larger than +2cm,
+                if(mid_x > 0.10f) TRANSLATE_RIGHT_3x //If x position of midpoint is larger than +10cm, move right.
+                else TRANSLATE_RIGHT //If x position of midpoint is between +2cm and +10cm, move right slowly.
               } else {
 		//After aligning to basket, go front.
                 GO_FRONT
@@ -539,7 +539,7 @@ else {
               }
 
 }
-	      //If robot is perfectly aligned with the basket and 80cm away from the basket, move to RELEASE state.
+	      //If vehicle is perfectly aligned with the basket and 80cm away from the basket, move to RELEASE state.
               if(0.5*(zg1+zg2) <= 0.8){ 
 		      printf("goal distance = %.4f\n", 0.5*(zg1+zg2)); 
 		      goal_z = 0.5*(zg1+zg2); //save goal_z for using in RELEASE phase.
@@ -556,14 +556,14 @@ else {
         }
 	      
 /* RELEASE phase :
-If lidar is not utilzed, robot goes front based on the distance to basket calculated in SEARCH_GREEN phase.
-Then reverse the roller to release the ball into the basket.*/
+If lidar is not utilzed, vehicle goes front based on the distance to basket calculated in SEARCH_GREEN phase.
+Then it rotates the roller in reverse direction to release the balls into the basket.*/
         case RELEASE:
         {
 	//If lidar is not utilzed,           
 	  #ifndef LIDAR
 	//goes front based on distance to basket calculates with goal_z which is from SEARCH_GREEN phase.
-	// goal_front_ticks (= 90 * goal_z(m)) is the time to go front for goal_z (m) is determined with many experiments.
+	// goal_front_ticks (= 90 * goal_z(m)) is the time to go front for goal_z (m) is determined both analytically and experimentally.
           uint32_t goal_front_ticks = (uint32_t) (90.0f * (goal_z));
 	//1st step : go front
           if(timer_ticks-current_ticks < goal_front_ticks) {
@@ -574,7 +574,7 @@ Then reverse the roller to release the ball into the basket.*/
             MSGE("RELEASE - roller_reverse")
             ROLLER_REVERSE // reversly roller on to release balls.
           } else { 
-	//After release balls, print total time and terminate.
+	//After releasing balls, print total time and terminate.
 	    printf("(%s) elapsed time = %.4f sec\n", TESTENV, 0.025 * timer_ticks);
             PANIC("RELEASE_TERMINATE : should have released 3 balls.") 
           }
@@ -625,7 +625,7 @@ Then reverse the roller to release the ball into the basket.*/
     ros::shutdown();
 
     return -1;
-} //finished main function.
+} //end of main function.
 
 #ifdef WEBCAM //If using webcam,
 /* camera_Callback : Updates position/ball_count of all colors */
