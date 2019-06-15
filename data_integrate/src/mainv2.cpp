@@ -335,100 +335,124 @@ int main(int argc, char **argv)
           break;
         }
 	/* RED_AVOIDANCE phase : 
-	robot keeping turning left until red ball is out of range.
-	Then go front for 65 time_ticks ( 65* 1/40 s) */
+	robot keeping turning left until red ball is out of range.(1)
+	Then go front for 65 time_ticks ( 65* 1/40 s) (2)
+	Lastly, move to search phase (during pickup mode) or search_green phase(during return mode) (3)*/
         case RED_AVOIDANCE:
-        { //red ball이 카메라에서 보이지 않고 red_phase2 = False일 때 
+        { //If red is not in sight and red_phase2 is false (set robot to go front)
           if(!red_in_range() && !red_phase2){ 
             red_phase2 = true; // change red_phase2 boolean to true to go front.
             printf("(%s) RED_AVOIDANCE_2\n", TESTENV);
-            current_ticks = timer_ticks; //timer_ticks 현재 시간 (실시간), current_ticks 는 timer_tick에서 그때그때 받아온 시간 (실시간으로 안바뀜)
-          }
-	  //red_phase2 = False 일 때 TURN_LEFT
+            current_ticks = timer_ticks; //timer on
+	  }
+	  //If red_phase2 = true (turn left until the red ball is not in sight) (1)
           if(!red_phase2) TURN_LEFT
-          else {  //red_phase2 = True 일 때 
-            GO_FRONT
-            if(timer_ticks - current_ticks > DISTANCE_TICKS) {// timer가 distance_ticks보다 클 때 
-		    					//DISTANCE_TICKS: 일정거리 전진하는 변수 ( 65 * 1/40 s)
+	  //If red_phase2 = True (go front for 65 * 1/40 s which is predefined based on both analytical and experimental test) (2)
+          else {
+		  GO_FRONT
+	    // When timer becomes larger than distance_ticks (DISTANCE_TICKS: 일정거리 전진하는 변수 ( 65 * 1/40 s) )
+            if(timer_ticks - current_ticks > DISTANCE_TICKS) { 
               red_phase2 = false;
-	      //전진 후 return mode이면 search_green, 아니면 Search_blue phase로 바꾼다.
-		    machine_status = (return_mode)? SEARCH_GREEN : SEARCH;
+	      //After go front, move phase to search_green (during return mode) or Search_blue (during pickup mode)
+	      machine_status = (return_mode)? SEARCH_GREEN : SEARCH;
           }
         }
           break;
         }
+	/* COLLECT phase :
+	Turn on the roller and set target blue ball to closest ball in bottom camera.
+	When target is too close, it can hide under the roller, then move to COLLECT2 phase to go front and pick up ball.
+	Otherwise, target is still in sight then align to target, start timer and move to COLLECT2 phase.
+	Then save x position and z position( distance) of recent target to use in COLLECT2.
+	If there is any red ball between the target and robot, then move to RED_AVOIDANCE phase.*/
         case COLLECT:
         {
           ROLLER_ON
-//멀리있는 왼쪽공 갈때 가까운 조금 오른쪽 공을 치고 가는 상황을 방지하기 위해서 가까운 공 먼저 먹게한다. 
+	  // if there are more than one blue ball in the bottom camera sight, target the closest blue ball in bottom camera
           int target = closest_ball(BLUE);
           if(target==-1) target = leftmost_blue();
-
-//
+	  //If blue ball is too close, it can be out of sight. Then move to COLLECT2 phase to collect hidden ball.
           if(target == -1){
-            machine_status = COLLECT2;
+            machine_status = COLLECT2; 
             printf("recent target blue was at (%.3f, %.3f)\n", recent_target_b_x, recent_target_b_z);
           }
-          else {
+ 	  //If target is in sight, then align to target again, start timer and move to COLLECT2 phase.
+          else { 
             float xpos = blue_x[target];
             float zpos = blue_z[target];
-
+	    // align to target if x position of target is larger than +-1.3cm
             if(xpos > 0.013) {
               TURN_RIGHT_SLOW ROLLER_ON //printf("col-R\n");
             } else if(xpos < -0.013) {
               TURN_LEFT_SLOW ROLLER_ON //printf("col-L\n");
             } else {
-              current_ticks = timer_ticks;
-              machine_status = COLLECT2;
+	      // After aligning to target
+              current_ticks = timer_ticks; // timer on
+              machine_status = COLLECT2; // move to COLLECT2 phase
             }
           }
-
+	  //If red ball is in sight
           if(red_in_range()) {
+	    //If red ball is between the target and robot, move to RED_AVOIDANCE phase.
             if(red_z[closest_ball(RED)] <= blue_z[target]) machine_status = RED_AVOIDANCE;
           }
+	  //Save x position and z position(distance) of target to use in COLLECT2 phase.
           if(target >= 0){
             recent_target_b_x = blue_x[target];
             recent_target_b_z = blue_z[target];
           }
           break;
         }
-        
-	//일정거리 앞으로 이동하면서 롤러 회전해서 공 진짜로 먹는거      
+        /* COLLECT2 phase : 
+	Go front for 40 * 1/ 40 s using timer and turn on the roller.
+	After timer is more than 40 * 1/40 s, stop robot but keep roller on to collect ball completely.
+	When timer becomes larger than DISTANCE_TICKS_CL ( 75 * 1/40 s) ,then move to SEARCH phase to collect another ball. */
 	case COLLECT2:
         {
-          if(timer_ticks - current_ticks <= 40) GO_FRONT
-	  ROLLER_ON
-          if(timer_ticks - current_ticks > DISTANCE_TICKS_CL) {
-            machine_status = SEARCH;
-
+          if(timer_ticks - current_ticks <= 40) GO_FRONT //GO_FRONT until timer becomes 40.
+	  ROLLER_ON //turn on the roller.
+          if(timer_ticks - current_ticks > DISTANCE_TICKS_CL) { // If timer becomes larger than DISTANCE_TICKS_CL ( 75)
+            machine_status = SEARCH; // move to SEARCH phase.
+	    //If x posiotn of target is smaller than 13.3cm, then count up.
+	    //Use x position value to count up as if using z position, then count up for both collected ball and disappeared ball in sight.
+	    //As this is not always correctly count balls, We made ball-counter using other ball-counter camera.
             if(fabs(recent_target_b_x)<0.133)
               printf("(%s) collected ball. ball_count = %d\n",TESTENV , ++ball_cnt);
           }
           break;
         }
-
-//웹캠만으로 멀리있는 초록공이 안보일때 Backup plan으로 라이다를 사용해서 Return하도록 하려고 코드를 짰지만,
-//실제 데모장에서 초록공 Detection 문제가 없어서 라이다 코드는 사용하지 않았다. 
+	/* LIDAR_RETURN phase : 
+	- We made this code as back up plan when distant green ball is not detected with webcam.
+	- But we did not use in demo as there's no problem in detecting green balls.
+	If the number of collecter ball is equal to 3, then change to LIDAR_RETURN phase.
+	If the lidar is not utilized, then immediately change to SEARCH_GREEN phase.
+	If the lidar is utilized, based on the absolute coordinates, move robot to the center ilne aligning with green balls.
+	Then move to SEARCH_GREEN phase.*/
         case LIDAR_RETURN:
         {
+	  // If the lidar is not utilized, move to SEARCH_GREEN phase.
           #ifndef LIDAR
           printf("(%s) LIDAR_RETURN : No LIDAR detected. Exitting.\n", TESTENV);
           machine_status = SEARCH_GREEN;
-
-          #else //보고서 
-          if(theta_abs > 190.0f) {
+	  // If the lidar is utilized 
+          #else 
+	  //If the absolute angle of the robot is smaller than 170 degree or larger than 190 degree,
+	  //adjust robot’s direction back to near 180 degree. 
+	  if(theta_abs > 190.0f) {
             MSGE("LIDAR_RETURN : turn left")
             TURN_LEFT
           } else if(theta_abs < 170.0f) {
             MSGE("LIDAR_RETURN : turn right")
             TURN_RIGHT
-          } else if(xpos_abs > 2.0f) {
+          } else if(xpos_abs > 2.0f) { 
+         //if the robot is away from the center line 2 cm, adjusting the lateral position of the robot to the center line.
             MSGE("LIDAR_RETURN : go_front")
             GO_FRONT
           } else {
+	 //Afther aligning, move to SEARCH_GREEN phase.
             machine_status = SEARCH_GREEN;
           }
-
+	 //If any red ball is detected in bottom camera, then move to RED_AVOIDANCE phase.
           if(red_in_range()){
             MSGE("LIDAR_RETURN : red ball detected")
             machine_status = RED_AVOIDANCE;
@@ -436,8 +460,9 @@ int main(int argc, char **argv)
           #endif
           break;
         }
-        
-//서치 그린안에 그린찾아서 릴리즈 까지 하는데 안에 가짜 서치가       
+        /* SEARCH_GREEN : 
+	switch cases with number of detected green balls.
+	If  */
 	case SEARCH_GREEN:
         {
           switch(green_cnt_top) {
