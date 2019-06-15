@@ -127,8 +127,6 @@ void sigsegv_handler(int sig) {
 
 bool use_myrio = true;
 
-// CAM01 : default x_ofs = -0.013, z_ofs = 0.130
-
 /* Main routine */
 int main(int argc, char **argv)
 {
@@ -139,7 +137,9 @@ int main(int argc, char **argv)
 
     /* Argument parsing */
     int tag;
-//143~198: Argument 붙이는거 타임아웃 지정, 위치 보정(offset) 
+// offsets for control position offsets
+//downside_angle is the angle with top camera
+//set timeout to change phase to return when out of time.
     char x_offset_[5];
     char y_offset_[5];
     char z_offset_[5];
@@ -149,14 +149,14 @@ int main(int argc, char **argv)
     char timeout_str[6];
 
     int flag = 0; //boolean variable to check argument content existence 
-//포인터 안에 내용을 다 0으로 만든다 (initializing pointers)
+//initializing pointers to make all 0's.
     memset(x_offset_, 0, 6);
     memset(y_offset_, 0, 6);
     memset(z_offset_, 0, 6);
     memset(downside_angle_, 0, 6);
 
 
-//argument parsing을 아용해 command에서 x, y, z offset과 use myrio, timeout을 설정할 수 있다.
+//Using argument parsing, we can set x, y, z offsets, use myrio and timeout in command.
 //command example ) rosrun data_integration data_integrate_node -x -0.013 -z 0.18 -T 60 -m
 
     while((tag = getopt(argc, argv, "x:z:X:Z:mT:")) != -1) {
@@ -194,6 +194,7 @@ int main(int argc, char **argv)
     timeout = atoi(timeout_str); //atoi : alphabet to int
 
 //if flag not set, use default values as given:
+// CAM01 : default x_ofs = -0.01m, z_ofs = 0.18m
     if(!(flag & 0x8)) x_offset = -0.01f; 
     if(!(flag & 0x2)) z_offset = 0.18f;
     if(!(flag & 0x10)) x_offset_top = 0;
@@ -211,7 +212,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub3 = n.subscribe<core_msgs::roller_num>("/roller_num",1000, camera_Callback_counter);
     #endif
 	
-//MYRIO가 define 되면, Myrio와 통신하기 위한 소켓을 생성하고, 초기화 시킨다 
+//If MYRIO is defined, then make socket to connect to Myrio and initialize it.
     #ifdef MYRIO
     if(use_myrio) {
     printf("(%s) Connecting to %s:%d\n", TESTENV, IPADDR, PORT);
@@ -221,8 +222,8 @@ int main(int argc, char **argv)
     c_addr.sin_port = htons(PORT);
 
 //앞서 초기화한 세팅으로 myrio와 connect하는데,
-//connect 실패하면 fail msg를 프린트 후 soket 닫고 -1 반환한다.
-//connect 되면 connet msg를 프린트한다.
+//If failed to connect, then print fail msg, close socket and return -1.
+//If connected, print connet msg.
     if(connect(c_socket, (struct sockaddr*) &c_addr, sizeof(c_addr)) == -1){
       printf("(%s) Failed to connect\n", TESTENV);
       close(c_socket);
@@ -609,7 +610,7 @@ Then reverse the roller to release the ball into the basket.*/
 	    
       #ifdef MYRIO
       if(use_myrio) {
-      size_t written = write(c_socket, data, sizeof(data)); //Send 24byte array named 'data' to TCP/IP by write function.
+      size_t written = write(c_socket, data, sizeof(data)); //Send 24 bit array named 'data' to TCP/IP by write function.
 	  
       if(DEBUG) printf("%d bytes written\n", (int) written); //print msgwhether TCP/IP is working well.
       }
