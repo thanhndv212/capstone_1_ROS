@@ -462,40 +462,48 @@ int main(int argc, char **argv)
         }
         /* SEARCH_GREEN : 
 	switch cases with number of detected green balls.
-	If  */
+	case 0 : robot keeps turning right until detectng.
+	case 1 : If distance to the green ball is larger than 2m, then go front with aligning.
+		After reaching 2m, robot keeps turning right slowly to detet the other green ball.
+	case 2 : Using feedback loop to align robot with basket.*/
 	case SEARCH_GREEN:
         {
           switch(green_cnt_top) {
-            case 0:
+            case 0: //If no green ball is detected, turn right until detecting.
 		{ TURN_RIGHT_MID break; }
-            case 1: //공이 하나만 보일때 그 공 보고 직진 (공이 멀리 있어서 하나만 보이는거 일 수도 있으니까)
+            case 1: //If only 1 ball is detected,
 		{
+	      //(for debugging) print spin msg with distance to green ball per 1/4 s.
 	      if(!(timer_ticks%10)) printf("(%s) spin(green_cnt_top = %d), zpos = %.4f\n", TESTENV, green_cnt_top, green_z_top[0]);
-              if(green_z_top[0] > 2.0f){
+              // If distance to the detected green ball os larger than 2m,
+	      if(green_z_top[0] > 2.0f){
+		 //calculate angle for feedback loop
 		 float target_theta = RAD2DEG(atan(green_x_top[0]/green_z_top[0]));
+		 // align robot to the basket
 		if(target_theta < -20.0f) TURN_RIGHT
 		else if(target_theta > 20.0f) TURN_LEFT
+		//after aligning, go front.
 		else GO_FRONT
 	      }
+	      //If green ball is in range of 2m, then turn right slowly to find other green ball.
  	      else { TURN_RIGHT_SLOW printf("turn_right : cnt=1, zpos = %.4f\n", green_z_top[0]); }
               break;
 		}
-            case 2: // 초록공 2개 동시에 보일때 실행
-            default: //초록공이 3개 넘게 인식될때에 대한 Backup plan
-            {
+            case 2: //If 2 green balls are detected,
+            default: // back up plan when detect more than 3 balls.
+            {	// using top camera to detect distant green balls
               float xg1 = green_x_top[0];
               float zg1 = green_z_top[0];
               float xg2 = green_x_top[1];
               float zg2 = green_z_top[1];
-
-              float mid_x = 0.5 * (xg1 + xg2); //중점 찾기//
+	      // Finding middle point of green balls
+              float mid_x = 0.5 * (xg1 + xg2); 
               float mid_z = 0.5 * (zg1 + zg2); 
-
+	      //print msg of position of green balls per 1/4 s.
               if(!(timer_ticks % 10)) printf(" (%.3f, %.3f), (%.3f, %.3f) \n", xg1, zg1, xg2, zg2);
-//0.4초마다 프린트해주는거//
-              float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1))); //중점이랑 카메라 시야 사이의 각도//
-//얼라인 할때 중점이 2미터 밖에 있으면 타깃 theta가 +_10도 안에 들어오게 align 하고 2미터 안에 들어올때까지 전진//
-
+	      //calculate angle between middle point of grren balls and middle line of camera.
+              float theta = RAD2DEG(atan((zg2-zg1)/(xg2-xg1))); 
+//If middle point is larger than 2m, then make target_theta in range of +_10 degree and go front until green balls are in 2m.
 if(mid_z > 2.0f) {
   float target_theta = RAD2DEG(atan(mid_x/mid_z));
   if(target_theta > 10.0f) TURN_RIGHT
@@ -504,12 +512,12 @@ if(mid_z > 2.0f) {
 
 
 } 
-//중점이 2미터 안에 있을때, theta가 10도에서 15도 사이 보다 작으면 
+//When middle point is in 2m, then align again with degrees.
 else {
 
               if(theta < -10.0f){
-		if(theta < -15.0f) TURN_RIGHT //15도 보다 클때 빠르게 회전//
-                else TURN_RIGHT_SLOW //10<theta<15 일때 느리게 회전: 정교한 alignment를 하기 위해//
+		if(theta < -15.0f) TURN_RIGHT //If theta is smaller than -15 degree, turn right.
+                else TURN_RIGHT_SLOW //If theta is in range of -10 to -15, turn right slowly for delicate alignment
                 MSGE("turn_right_slow")
 
               } else if(theta > 10.0f) {
