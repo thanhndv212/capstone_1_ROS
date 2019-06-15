@@ -336,22 +336,23 @@ int main(int argc, char **argv)
         }
 	/* RED_AVOIDANCE phase : 
 	robot keeping turning left until red ball is out of range.
-	Then go front for 65 time_ticks ( 65* 1/40) */
+	Then go front for 65 time_ticks ( 65* 1/40 s) */
         case RED_AVOIDANCE:
-        {
+        { //red ball이 카메라에서 보이지 않고 red_phase2 = False일 때 
           if(!red_in_range() && !red_phase2){ 
-            red_phase2 = true;
+            red_phase2 = true; // change red_phase2 boolean to true to go front.
             printf("(%s) RED_AVOIDANCE_2\n", TESTENV);
             current_ticks = timer_ticks; //timer_ticks 현재 시간 (실시간), current_ticks 는 timer_tick에서 그때그때 받아온 시간 (실시간으로 안바뀜)
           }
-
+	  //red_phase2 = False 일 때 TURN_LEFT
           if(!red_phase2) TURN_LEFT
-          else {
+          else {  //red_phase2 = True 일 때 
             GO_FRONT
-//Return Mode (red avoidance)가 켜지면 그냥 Search_blue가 아닌 Search_green으로 돌아가게 해준다
-            if(timer_ticks - current_ticks > DISTANCE_TICKS) { // DISTANCE_TICKS: 일정거리 전진하는 변수
+            if(timer_ticks - current_ticks > DISTANCE_TICKS) {// timer가 distance_ticks보다 클 때 
+		    					//DISTANCE_TICKS: 일정거리 전진하는 변수 ( 65 * 1/40 s)
               red_phase2 = false;
-              machine_status = (return_mode)? SEARCH_GREEN : SEARCH;
+	      //전진 후 return mode이면 search_green, 아니면 Search_blue phase로 바꾼다.
+		    machine_status = (return_mode)? SEARCH_GREEN : SEARCH;
           }
         }
           break;
