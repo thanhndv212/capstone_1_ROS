@@ -555,24 +555,29 @@ else {
         }
 	      
 /* RELEASE phase :
-*/
+If lidar is not utilzed, robot goes front based on the distance to basket calculated in SEARCH_GREEN phase.
+Then reverse the roller to release the ball into the basket.*/
         case RELEASE:
         {
-//웹캠만으로 멀리있는 초록공이 안보일때 Backup plan으로 라이다를 사용해서 Return하도록 하려고 코드를 짰지만,
-//실제 데모장에서 초록공 Detection 문제가 없어서 라이다 코드는 사용하지 않았다.           
+	//If lidar is not utilzed,           
 	  #ifndef LIDAR
-          uint32_t goal_front_ticks = (uint32_t) (90.0f * (goal_z)); //Search_Green에서 정의된 goal_z 값을 사용하여 남은 직진 거리 정함
-
-          if(timer_ticks-current_ticks < goal_front_ticks) { //직진 구간
+	//goes front based on distance to basket calculates with goal_z which is from SEARCH_GREEN phase.
+	// goal_front_ticks (= 90 * goal_z(m)) is the time to go front for goal_z (m) is determined with many experiments.
+          uint32_t goal_front_ticks = (uint32_t) (90.0f * (goal_z));
+	//1st step : go front
+          if(timer_ticks-current_ticks < goal_front_ticks) {
             MSGE("RELEASE - go front")
             GO_FRONT
-          } else if(timer_ticks - current_ticks < 100 + goal_front_ticks) { //도착한 뒤에 공 뱉기
+	//2nd step : release balls, (we added 100 timeticks to goal_front_ticks for correctly get into basket.)
+          } else if(timer_ticks - current_ticks < 100 + goal_front_ticks) {
             MSGE("RELEASE - roller_reverse")
-            ROLLER_REVERSE
-          } else { //시간 얼마나 걸렸는지 프린트하고 종료 
+            ROLLER_REVERSE // reversly roller on to release balls.
+          } else { 
+	//After release balls, print total time and terminate.
 	    printf("(%s) elapsed time = %.4f sec\n", TESTENV, 0.025 * timer_ticks);
             PANIC("RELEASE_TERMINATE : should have released 3 balls.") 
           }
+	//If lidar is utilzed,
           #else
           if(xpos_abs > 0.02f) {
             MSGE("RELEASE - go front(feedback)")
@@ -592,7 +597,7 @@ else {
 
           break;
         }
-
+//When phase error, print assertion error.
         default:
           assert(0);
 
@@ -604,28 +609,31 @@ else {
 	    
       #ifdef MYRIO
       if(use_myrio) {
-      size_t written = write(c_socket, data, sizeof(data)); //write 라는게 TCP/IP에 데이타를 보냄, 
+      size_t written = write(c_socket, data, sizeof(data)); //Send 24byte array named 'data' to TCP/IP by write function.
 	  
-      if(DEBUG) printf("%d bytes written\n", (int) written);
+      if(DEBUG) printf("%d bytes written\n", (int) written); //print msgwhether TCP/IP is working well.
       }
       #endif
 
-	    ros::Duration(DURATION).sleep(); // 1/40초를 기다리게 한다 (time_tick 주기 맞춰주기 위함) //
+	    ros::Duration(DURATION).sleep(); //make timer_ticks to increase regularly (duration is predefined to 1/40s)
 	    ros::spinOnce();
-      timer_ticks++;
+      timer_ticks++; //increase time_ticks 1.
     }
 
-    close(c_socket);
+    close(c_socket); //close socket
     ros::shutdown();
 
     return -1;
-}
+} //finished main function.
 
-#ifdef WEBCAM
+#ifdef WEBCAM //If using webcam,
 /* camera_Callback : Updates position/ball_count of all colors */
+//This function is for bottom camera
 void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 {
   /* Step 1. Fetch data from message */
+  /*blue*/
+  //get the number of blue balls
   int b_cnt = position->size_b;
   blue_cnt = position->size_b;
 
@@ -633,40 +641,42 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     // transform the matrix
     float x_pos = position->img_x_b[i];
     float y_pos = position->img_y_b[i];
-    //float z_pos = sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0) - pow(position->img_y_b[i],2.0));
     float z_pos = position->img_z_b[i];
-    //z_pos = position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
+    //As the position of webcam and roller id different, we find proper offset to change coordinate to roller.
     blue_x[i] = x_pos - x_offset;
     blue_z[i] = z_pos - z_offset;
   }
-
+  //get the number of red balls
+  /*red*/
   int r_cnt = position->size_r;
   red_cnt = position->size_r;
 
   for(int i=0; i<r_cnt; i++) {
+    // transform the matrix
     float x_pos = position->img_x_r[i];
     float y_pos = position->img_y_r[i];
    float z_pos = position->img_z_r[i];
-    //float z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(red_x[i], 2.0) - pow(red_y[i], 2.0));
-    //z_pos = sqrt(pow(position->img_z_r[i],2.0) - pow(position->img_x_r[i],2.0));
 
     /* TODO : transform (Camera coordinate)->(LLF) */
+    //As the position of webcam and roller id different, we find proper offset to change coordinate to roller.
     red_x[i] = x_pos - x_offset;
     red_y[i] = (y_pos * cos(downside_angle) + z_pos * sin(downside_angle)) - y_offset;
     red_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
     red_z[i] = z_pos - z_offset;
   }
-
+  /*green*/
+  //get the number of green balls
   int g_cnt = position->size_g;
   green_cnt = position->size_g;
 
   for(int i=0; i<g_cnt; i++) {
+      // transform the matrix
     float x_pos = position->img_x_g[i];
     float y_pos = position->img_y_g[i];
-    float z_pos = position->img_z_g[i]; //sqrt(pow(position->img_z_g[i],2.0) - pow(position->img_x_g[i],2.0));
-
+    float z_pos = position->img_z_g[i];
+    //As the position of webcam and roller id different, we find proper offset to change coordinate to roller.
     green_x[i] = x_pos - x_offset;
     green_z[i] = z_pos - z_offset;
   }
@@ -674,9 +684,11 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
 }
 
 /* callback 2 */
+//This function is for top camera (same algorithm with bottom camera callback.)
 void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
 {
   /* Step 1. Fetch data from message */
+  /*blue*/
   int b_cnt_top = position->size_b;
   blue_cnt_top = position->size_b;
 
@@ -684,20 +696,21 @@ void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
     // transform the matrix
     float x_pos = position->img_x_b[i];
     float y_pos = position->img_y_b[i];
-    float z_pos = position->img_z_b[i]; //sqrt(pow(position->img_z_b[i],2.0) - pow(position->img_x_b[i],2.0));
+    float z_pos = position->img_z_b[i]; 
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     blue_x_top[i] = x_pos - x_offset_top;
     blue_z_top[i] = z_pos - z_offset_top;
   }
-
+	
+  /*red*/
   int r_cnt_top = position->size_r;
   red_cnt_top = position->size_r;
 
   for(int i=0; i<r_cnt_top; i++) {
     float x_pos = position->img_x_r[i];
     float y_pos = position->img_y_r[i];
-    float z_pos = position->img_z_r[i]; //sqrt(pow(position->img_z_r[i],2.0) - pow(position->img_x_r[i],2.0));
+    float z_pos = position->img_z_r[i];
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     red_x_top[i] = x_pos - x_offset;
@@ -705,14 +718,13 @@ void camera_Callback_top(const core_msgs::ball_position_top::ConstPtr& position)
   }
 
   /* Green */
-
   int g_cnt_top = position->size_g;
   green_cnt_top = position->size_g;
 
   for(int i=0; i<g_cnt_top; i++) {
     float x_pos = position->img_x_g[i];
     float y_pos = position->img_y_g[i];
-    float z_pos = position->img_z_g[i]; //sqrt(pow(position->img_z_g[i],2.0) - pow(position->img_x_g[i],2.0));
+    float z_pos = position->img_z_g[i];
 
     /* TODO : transform (Camera coordinate)->(LLF) */
     green_x_top[i] = x_pos - x_offset;
