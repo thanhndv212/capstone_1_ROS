@@ -35,8 +35,7 @@ void morphOps(Mat &thresh);
 
 // Declaration of functions that calculates the ball position from pixel position: Using the pixel positions from the image observed by the camera, this function calculates the position of the ball, which is extremely important in our course goal. The vector function stores series of elements with the same variable name, in float data type.
 vector<float> pixel2point(Point center, int radius);
-
-// Declaration of trackbars function that set Canny edge's parameters: The Canny edge is a popular edge detecting algorithm, developed by John F. Canny. For the Sobel operations to be performed internally, we use kernel size of 3. We declare the canny edge trackbars for two sets; red and blue ball.
+//set default value
 int lowThreshold_r = 100;
 int ratio_r = 3;
 int kernel_size_r = 3;
@@ -81,12 +80,8 @@ int main(int argc, char **argv)
     ros::NodeHandle nh; //create node handler
     pub = nh.advertise<core_msgs::ball_position>("/position", 100); //setting publisher
 
-    /////////////////////////////////////////////////////////////////////////
-
-    core_msgs::ball_position msg;  //create a message for ball positions
-
-
-    //////////////////////////////////////////////////////////////////
+    core_msgs::ball_position msg;
+//set frames using in image manipulation functions
     Mat frame, bgr_frame, hsv_frame, hsv_frame_red, hsv_frame_red1, hsv_frame_red2, hsv_frame_blue,hsv_frame_green, hsv_frame_red_blur, hsv_frame_blue_blur, hsv_frame_green_blur, hsv_frame_red_canny, hsv_frame_blue_canny,hsv_frame_green_canny, result;
     Mat calibrated_frame;
     Mat intrinsic = Mat(3,3, CV_32FC1);
@@ -94,7 +89,7 @@ int main(int argc, char **argv)
     intrinsic = Mat(3, 3, CV_32F, intrinsic_data);
     distCoeffs = Mat(1, 5, CV_32F, distortion_data);
 
-
+//declare vectors using in findcontours function
     vector<Vec4i> hierarchy_r;
     vector<Vec4i> hierarchy_b;
     vector<Vec4i> hierarchy_g;
@@ -151,6 +146,7 @@ int main(int argc, char **argv)
     findContours(hsv_frame_red_canny, contours_r, hierarchy_r, RETR_CCOMP, CHAIN_APPROX_SIMPLE, Point(0, 0));
     findContours(hsv_frame_blue_canny, contours_b, hierarchy_b, RETR_CCOMP, CHAIN_APPROX_SIMPLE, Point(0, 0));
     findContours(hsv_frame_green_canny, contours_g, hierarchy_g, RETR_CCOMP, CHAIN_APPROX_SIMPLE, Point(0, 0));
+    //resize to number of detected balls
     vector<vector<Point> > contours_r_poly( contours_r.size() );
     vector<vector<Point> > contours_b_poly( contours_b.size() );
     vector<vector<Point> > contours_g_poly( contours_g.size() );
@@ -163,7 +159,7 @@ int main(int argc, char **argv)
     vector<float>radius_b( contours_b.size() );
     vector<float>radius_g( contours_g.size() );
 
-
+//Minenclosing circle function.
         for( size_t i = 0; i < contours_b.size(); i++ ){
             approxPolyDP( contours_b[i], contours_b_poly[i], 3, true );
             minEnclosingCircle( contours_b_poly[i], center_b[i], radius_b[i] );
@@ -181,14 +177,15 @@ int count_g=0;
 vector<float> ball_r_x, ball_r_y, ball_r_z, ball_r_radius;
 vector<float> ball_b_x, ball_b_y, ball_b_z, ball_b_radius;
 vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
+//draw circles in screen and processing
     for( size_t i = 0; i< contours_b.size(); i++ ){
-      if((radius_b[i] > iMin_tracking_ball_size) && (15<center_b[i].x)&&(center_b[i].x < 605)){
+      if((radius_b[i] > iMin_tracking_ball_size) && (15<center_b[i].x)&&(center_b[i].x < 605)){ //for erasing errors using min radius and side of the screen
             vector<float> ball_position_b;
             ball_position_b = pixel2point(center_b[i], radius_b[i]);
+	      
             float dis = ball_position_b[2];
-            float pixel = 0.0002*pow(radius_b[i],2)-0.0362*radius_b[i]+1.766;
-		//cout << center_b[i]<<endl;
-		//cout <<"2"<<endl;
+            float pixel = 0.0002*pow(radius_b[i],2)-0.0362*radius_b[i]+1.766;//추세선 계산
+		// error가 30cm 이하일 때
 	      	if ( (pixel - dis) <0.3){
 
 		            ball_b_x.push_back(ball_position_b[0]);
@@ -196,6 +193,7 @@ vector<float> ball_g_x, ball_g_y, ball_g_z, ball_g_radius;
                 ball_b_z.push_back(ball_position_b[2]);
                 ball_b_radius.push_back(ball_position_b[3]);
 		              count_b++;
+		//같은 공 여러개로 보이는 것 제거
                   float x1, y1, x2, y2;
                   x1 =center_b[i].x;
 		              x2 =center_b[i+1].x;
@@ -279,7 +277,7 @@ for( size_t i = 0; i< contours_r.size(); i++ ){
             if (abs(l)>diff)i++;}
 						
         }
-
+//msg에 계산된 값들 넣어줌
 msg.size_b = count_b;
 msg.img_x_b = ball_b_x;
 msg.img_y_b = ball_b_y;
@@ -292,7 +290,7 @@ msg.size_g = count_g;
 msg.img_x_g = ball_g_x;
 msg.img_y_g = ball_g_y;
 msg.img_z_g = ball_g_z;
-
+//publish
     pub.publish(msg);
 cout <<count_b<<count_r<<endl;
     // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
@@ -304,12 +302,12 @@ cout <<count_b<<count_r<<endl;
     ros::spin();
     return 0;
 }
-
+//chage format int to string
 string intToString(int n){stringstream s;
     s << n;
     return s.str();
 }
-
+//change format float to string
 string floatToString(float f){ostringstream buffer;
     buffer << f;
     return buffer.str();
@@ -325,7 +323,7 @@ void morphOps(Mat &thresh){//create structuring element that will be used to "di
     dilate(thresh,thresh,dilateElement);
     dilate(thresh,thresh,dilateElement);
 }
-
+//calculate real distance using calibration.
 vector<float> pixel2point(Point center, int radius){vector<float> position;
     float x, y, u, v, Xc, Yc, Zc,Pc;
     x = center.x;//.x;// .at(0);
@@ -343,6 +341,5 @@ vector<float> pixel2point(Point center, int radius){vector<float> position;
     position.push_back(Xc);
     position.push_back(Yc);
     position.push_back(Pc);
-    //position.push_back(Zc);
     return position;
 }
