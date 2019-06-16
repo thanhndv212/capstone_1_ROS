@@ -415,7 +415,7 @@ int main(int argc, char **argv)
           if(timer_ticks - current_ticks > DISTANCE_TICKS_CL) { // If timer becomes larger than DISTANCE_TICKS_CL ( 75)
             machine_status = SEARCH; // move to SEARCH phase.
 	    //If x position of target is smaller than 13.3cm, then count up.
-	    //Use x position value to count up as if using z position, then count up for both collected ball and disappeared ball in sight.
+	    //Use x position value to do ball count. Because when we used z position, ball count increased for both collected ball and disappeared ball in sight.
 	    //As this does not always count balls correctly, We made ball-counter using another ball-counter camera.
             if(fabs(recent_target_b_x)<0.133)
               printf("(%s) collected ball. ball_count = %d\n",TESTENV , ++ball_cnt);
