@@ -663,9 +663,9 @@ void camera_Callback(const core_msgs::ball_position::ConstPtr& position)
     /* TODO : transform (Camera coordinate)->(LLF) */
     //As the position of webcam and roller id different, we find proper offset to change coordinate to roller.
     red_x[i] = x_pos - x_offset;
-    red_y[i] = (y_pos * cos(downside_angle) + z_pos * sin(downside_angle)) - y_offset;
-    red_z[i] = (z_pos * cos(downside_angle) - y_pos * cos(downside_angle)) - z_offset;
-    red_z[i] = z_pos - z_offset;
+
+	red_z[i] = z_pos - z_offset;
+	  
   }
   /*green*/
   //get the number of green balls
