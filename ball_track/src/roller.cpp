@@ -73,12 +73,9 @@ int main(int argc, char **argv)
     ros::NodeHandle nh; //create node handler
     pub = nh.advertise<core_msgs::roller_num>("/roller_num", 100); //setting publisher
 
-    /////////////////////////////////////////////////////////////////////////
-
     core_msgs::roller_num msg;  //create a message for ball positions
 
-
-    //////////////////////////////////////////////////////////////////
+//declare frames using in image processing functions.
     Mat frame, bgr_frame, hsv_frame,  hsv_frame_blue, hsv_frame_blue_blur,  hsv_frame_blue_canny, result;
     Mat calibrated_frame;
     Mat intrinsic = Mat(3,3, CV_32FC1);
@@ -133,48 +130,22 @@ int main(int argc, char **argv)
          for( size_t i = 0; i < contours_b.size(); i++ )
  {
    approxPolyDP( contours_b[i], contours_b_poly[i], 3, true );
-   //boundRect[i] = boundingRect( contours_b_poly[i] );
    minEnclosingCircle( contours_b_poly[i], center_b[i], radius_b[i] );
 
  }
-//
-//  if ( boundRect.size()){float bound= boundRect[0].tl().y;cout<<"1"<<endl;}
-// //  vector<Point2f>center=(250,250);
-cv::Point_<int> center(230,250);
-//
- float num =0;
-//  for( size_t i = 0; i< boundRect.size(); i++ ){
-// 		float dis = sqrt(pow(boundRect[i].height,2)+pow(boundRect[i].width,2));
-//       if(dis >600){
-// 	 	num = 1;
-// 		float x = boundRect[i].tl().x;
-// float y = boundRect[i].tl().y;
-//
-// cout << dis<<"t"<< boundRect[i].tl()<<endl;
-//                 Scalar color = Scalar( 255, 0, 0);
-//                 putText(result, "3 balls", center,2,3,Scalar(0,255,0),2);
-// 	   rectangle( result, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0 );
-//                 //drawContours( hsv_frame_blue_canny, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
-//                 text = num;
-//
-//
-// }
 
-//                }
+cv::Point_<int> center(230,250);
+ float num =0;
 
 for( size_t i = 0; i< contours_b.size(); i++ ){
-  if(radius_b[i] > 191){
+  if(radius_b[i] > 191){ // for only larger than 191
       num=1;
             Scalar color = Scalar( 255, 0, 0);
             drawContours( result, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
-            //circle( result, center_b[i], (int)radius_b[i], color, 2, 8, 0 );
 
-       //     cout <<radius_b[i]<<endl;
 
                             putText(result, "3 balls", center,2,3,Scalar(0,0,255),2);
-            	   //rectangle( result, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0 );
-                            //drawContours( hsv_frame_blue_canny, contours_b_poly, (int)i, color, 1, 8, vector<Vec4i>(), 0, Point() );
-                            text = num;
+                           text = num;
 
 
     }
@@ -185,7 +156,6 @@ for( size_t i = 0; i< contours_b.size(); i++ ){
 
 msg.size_b = num;
     pub.publish(msg);
-    // Show the frames: Here, the 6 final widnows or frames are displayed for the user to see.
     imshow("Result", result);
 
 
