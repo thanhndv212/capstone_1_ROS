@@ -36,8 +36,8 @@ void morphOps(Mat &thresh);
 // Declaration of functions that calculates the ball position from pixel position: Using the pixel positions from the image observed by the camera, this function calculates the position of the ball, which is extremely important in our course goal. The vector function stores series of elements with the same variable name, in float data type.
 vector<float> pixel2point(Point center, int radius);
 
-// Declaration of trackbars function that set Canny edge's parameters: The Canny edge is a popular edge detecting algorithm, developed by John F. Canny. For the Sobel operations to be performed internally, we use kernel size of 3. We declare the canny edge trackbars for two sets; red and blue ball.
-int lowThreshold_r = 100;
+// initialize values
+	int lowThreshold_r = 100;
 int ratio_r = 3;
 int kernel_size_r = 3;
 int lowThreshold_b = 100;
@@ -74,6 +74,7 @@ void sigint_handler(int sig){
 // Here, we start our main function.
 int main(int argc, char **argv)
 {
+	//for setting video device number in commad
     int idx = (argc == 1)? INDEX_DEFAULT : (atoi(argv[1]));
 
     signal(SIGINT, sigint_handler);
@@ -82,19 +83,16 @@ int main(int argc, char **argv)
     ros::NodeHandle nh; //create node handler
     pub = nh.advertise<core_msgs::ball_position_top>("/position_top", 100); //setting publisher
 
-    /////////////////////////////////////////////////////////////////////////
-
     core_msgs::ball_position_top msg;  //create a message for ball positions
 
-
-    //////////////////////////////////////////////////////////////////
+//declare frames using in image processing funtions
     Mat frame, bgr_frame, hsv_frame, hsv_frame_red, hsv_frame_red1, hsv_frame_red2, hsv_frame_blue,hsv_frame_green, hsv_frame_red_blur, hsv_frame_blue_blur, hsv_frame_green_blur, hsv_frame_red_canny, hsv_frame_blue_canny,hsv_frame_green_canny, result;
     Mat calibrated_frame;
     Mat intrinsic = Mat(3,3, CV_32FC1);
     Mat distCoeffs;
     intrinsic = Mat(3, 3, CV_32F, intrinsic_data);
     distCoeffs = Mat(1, 5, CV_32F, distortion_data);
-
+//decalre vectors using in Findcontours function
     vector<Vec4i> hierarchy_r;
     vector<Vec4i> hierarchy_b;
     vector<Vec4i> hierarchy_g;
@@ -214,6 +212,7 @@ vector<float> ball_b_z, ball_g_radius,ball_b_radius , ball_r_radius;
             ball_r_z.push_back(isz);
             ball_r_radius.push_back(radi);
 		           count_r++;
+		//for  erasing ovelapped circle ( error that detects 1 ball as 2 balls.)
                                  float x1, y1, x2, y2;
                   x1 =center_r[i].x;
 		              x2 =center_r[i+1].x;
@@ -293,6 +292,7 @@ vector<float> ball_b_z, ball_g_radius,ball_b_radius , ball_r_radius;
         }
     }
 if(DEBUG) cout<<count_b<< count_r<<endl;
+//move calculated variables to msg
 msg.size_b = count_b;
 msg.img_x_b = ball_b_x;
 msg.img_y_b = ball_b_y;
